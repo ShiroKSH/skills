@@ -8,6 +8,7 @@
 - Preserve CFrame rotation and account for rotated part bounds when grounding generated maps.
 - Refresh the plugin panel with Studio theme colors, responsive connection fields, a Connect/Disconnect toggle, and scrollable activity logs.
 - Add HTTP integration coverage and executable Luau regression tests against the built plugin model.
+- Update the MCP SDK, test runner, and transitive dependencies to resolve the reported npm advisories.
 
 - Add automatic CodeRabbit, Qodo, Sourcery, CodeQL, Dependabot, and secret-scanning review layers for pull requests.
 - Rename the repository to `skills` and the bundled integration to `roblox-studio`.

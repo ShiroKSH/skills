@@ -82,13 +82,13 @@ Expired commands are removed from the server queue and rejected by the plugin be
 
 `studio_capture_viewport` accepts optional integer `width` and `height` from 1 to 4096 and saves a viewport-only PNG under `generated/captures`. It requires native Studio screenshot permission and an active rendered place. Grant permission with the plugin's `Allow viewport capture` button. Tool calls never prompt. An unavailable capture returns an error without falling back to desktop screenshots.
 
-Files use unique names and are never overwritten. Binary results are capped at 8 MiB, decoded and signature-checked before saving. Only `/plugin/result` permits a 16 MiB JSON envelope for base64 transport. Other request bodies retain their 1 MiB limit. Encoded data is redacted from logs.
+Files use unique names and are never overwritten. Failed writes remove only the newly created artifact. POSIX artifact directories are restricted to mode `0700` and files to `0600`; Windows uses the enclosing directory's ACL. Binary results are capped at 8 MiB, decoded and signature-checked before saving. Only `/plugin/result` permits a 16 MiB JSON envelope for base64 transport. Other request bodies retain their 1 MiB limit. Encoded data is redacted from logs. Captures preserve viewport proportions when either output dimension is omitted.
 
 ## Automated Tests
 
 `studio_run_test` takes `modulePath`, `confirmToken="RUN_STUDIO_TEST"`, `mode="run"` or `"play"`, optional JSON `args`, and `timeoutSeconds` from 1 to 120. The ModuleScript must be inside a managed root and return a function accepting `args`. Its return value must be JSON-serializable.
 
-The bridge creates a temporary server runner, starts the native Studio test, returns `{ok,result}` or `{ok:false,error}`, and removes the runner from edit mode afterward. A test-server deadline and an edit-side Stop watchdog handle timeouts. These are not an operating-system hard kill. A frozen Studio process can still require a restart.
+The bridge creates a temporary server runner, starts the native Studio test, returns `{ok,result}` or `{ok:false,error}`, and removes the runner from edit mode afterward. Failed tests also set the MCP `isError` flag. A test-server deadline and an edit-side Stop watchdog handle timeouts. These are not an operating-system hard kill. A frozen Studio process can still require a restart.
 
 Run reviewed project code only. Tests and the place's existing scripts execute with ordinary game-script access, including any enabled persistent or external services. The managed-root check restricts test selection, not runtime behavior. Simulation changes are discarded when the test ends, but DataStore and external writes are not rolled back. Legacy `studio_start_playtest` and `studio_stop_playtest` keep their manual-action response for compatibility.
 

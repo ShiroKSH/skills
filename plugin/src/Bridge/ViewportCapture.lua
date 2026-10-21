@@ -11,8 +11,16 @@ function ViewportCapture.capture(args)
 	assert(camera, "Studio has no viewport camera")
 	local size = camera.ViewportSize
 	assert(size.X > 0 and size.Y > 0, "Studio viewport is not rendered")
-	local width = math.floor(tonumber(args.width) or math.min(size.X, 1920))
-	local height = math.floor(tonumber(args.height) or math.min(size.Y, 1080))
+	local width, height = tonumber(args.width), tonumber(args.height)
+	if width and not height then
+		height = width * size.Y / size.X
+	elseif height and not width then
+		width = height * size.X / size.Y
+	elseif not width and not height then
+		local scale = math.min(1, 1920 / size.X, 1080 / size.Y)
+		width, height = size.X * scale, size.Y * scale
+	end
+	width, height = math.floor(width), math.floor(height)
 	assert(width > 0 and height > 0 and width <= 4096 and height <= 4096, "Capture dimensions must be between 1 and 4096")
 	local capture = StudioCaptureService:CaptureScreenshot({
 		Position = Vector2.zero,

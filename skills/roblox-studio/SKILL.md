@@ -35,7 +35,7 @@ Use the `roblox-studio` MCP tools to work against the place currently open in St
 6. Run `map_validate` on the exact returned map root with `strictGeometry=true`.
 7. Run `map_readiness_check` for playable maps; use `profile="house"` only for its named house contract.
 8. Inspect from useful angles with `studio_focus_instance`, `studio_set_camera`, and `studio_visual_probe`.
-9. When behavior matters, review a managed test ModuleScript and call `studio_run_test` with `confirmToken="RUN_STUDIO_TEST"`. Tests execute ordinary project code, not a sandbox. Use a working copy and disable or mock persistent/external writes.
+9. When behavior matters, review a managed test ModuleScript returning `function(args)`. Raise an error on failure and return a JSON-serializable value on success. Call `studio_run_test` with `confirmToken="RUN_STUDIO_TEST"`, optional `mode` (`run` or `play`), and `timeoutSeconds` (integer 1-120, default 30). Tests execute ordinary project code, not a sandbox. Use a working copy and disable or mock persistent/external writes.
 10. Repair concrete failures and repeat validation. Prefer a scoped patch over rebuilding a sound map.
 
 ## Quality Bar

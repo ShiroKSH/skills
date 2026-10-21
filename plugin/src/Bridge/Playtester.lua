@@ -24,7 +24,11 @@ local finished = false
 local function finish(value)
 	if finished then return end
 	finished = true
-	tests:EndTest(value)
+	local ok = pcall(tests.EndTest, tests, value)
+	if not ok then
+		local sent = pcall(tests.EndTest, tests, { ok = false, error = "Test result is not serializable" })
+		if not sent then finished = false end
+	end
 end
 local input = tests:GetTestArgs()
 if type(input) ~= "table" or input.bridgeTestId ~= %q then return end

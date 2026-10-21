@@ -1,9 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { StudioBridge } from "../protocol.js";
+import { writePrivateArtifact } from "./privateArtifacts.js";
 
 export async function saveModelExport(result: unknown, directory = resolve("generated", "exports")) {
   const parsed = z.object({
@@ -16,10 +16,8 @@ export async function saveModelExport(result: unknown, directory = resolve("gene
   if (data.length !== parsed.byteLength || data.subarray(0, 8).toString("ascii") !== "<roblox!") {
     throw new Error("Studio returned an invalid binary model export");
   }
-  await mkdir(directory, { recursive: true });
   const name = parsed.rootPath.split("/").at(-1)!.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80) || "map";
-  const artifactPath = join(directory, `${name}_${randomUUID()}.rbxm`);
-  await writeFile(artifactPath, data, { flag: "wx" });
+  const artifactPath = await writePrivateArtifact(directory, `${name}_${randomUUID()}.rbxm`, data);
   return { artifactPath, rootPath: parsed.rootPath, byteLength: data.length, instanceCount: parsed.instanceCount };
 }
 

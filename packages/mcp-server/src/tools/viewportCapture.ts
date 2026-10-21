@@ -1,9 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { StudioBridge } from "../protocol.js";
+import { writePrivateArtifact } from "./privateArtifacts.js";
 
 export async function saveViewportCapture(result: unknown, directory = resolve("generated", "captures")) {
   const parsed = z.object({
@@ -20,9 +20,7 @@ export async function saveViewportCapture(result: unknown, directory = resolve("
     || data.readUInt32BE(16) !== parsed.width || data.readUInt32BE(20) !== parsed.height) {
     throw new Error("Studio returned an invalid PNG viewport capture");
   }
-  await mkdir(directory, { recursive: true });
-  const artifactPath = join(directory, `viewport_${randomUUID()}.png`);
-  await writeFile(artifactPath, data, { flag: "wx" });
+  const artifactPath = await writePrivateArtifact(directory, `viewport_${randomUUID()}.png`, data);
   return { artifactPath, width: parsed.width, height: parsed.height, byteLength: data.length };
 }
 

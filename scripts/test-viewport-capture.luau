@@ -3,8 +3,14 @@ local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
 local source = fs.readFile("plugin/src/Bridge/ViewportCapture.lua")
 local passed = 0
-for _, scenario in ipairs({ "success", "denied", "read-error", "encode-error", "oversize", "capture-error", "timeout" }) do
+for _, scenario in ipairs({ "success", "denied", "read-error", "encode-error", "oversize", "capture-error", "timeout", "width-only", "height-only", "wide-default", "explicit" }) do
 	local destroyed, requested, clock = false, false, 0
+	local size, args = roblox.Vector2.new(800, 600), {}
+	local expected = size
+	if scenario == "width-only" then size, args, expected = roblox.Vector2.new(1600, 900), { width = 800 }, roblox.Vector2.new(800, 450) end
+	if scenario == "height-only" then size, args, expected = roblox.Vector2.new(1600, 900), { height = 450 }, roblox.Vector2.new(800, 450) end
+	if scenario == "wide-default" then size, expected = roblox.Vector2.new(2560, 1000), roblox.Vector2.new(1920, 750) end
+	if scenario == "explicit" then args, expected = { width = 640, height = 480 }, roblox.Vector2.new(640, 480) end
 	local capture = { BufferStatus = "Ready", Resolution = roblox.Vector2.new(800, 600) }
 	if scenario == "capture-error" then capture.BufferStatus = "Error" end
 	if scenario == "timeout" then capture.BufferStatus = "Pending" end
@@ -20,6 +26,8 @@ for _, scenario in ipairs({ "success", "denied", "read-error", "encode-error", "
 			CaptureScreenshot = function(_, options)
 				requested = true
 				assert(options.UICaptureMode == "None" and options.Format == "PNG")
+				assert(options.OutputSize == expected)
+				capture.Resolution = options.OutputSize
 				return capture
 			end,
 		},
@@ -31,7 +39,7 @@ for _, scenario in ipairs({ "success", "denied", "read-error", "encode-error", "
 	}
 	local module = luau.load(source, { environment = {
 		game = { GetService = function(_, name) return services[name] end },
-		workspace = { CurrentCamera = { ViewportSize = roblox.Vector2.new(800, 600) } },
+		workspace = { CurrentCamera = { ViewportSize = size } },
 		Enum = { StudioCaptureBufferStatus = { Ready = "Ready", Error = "Error" }, ResamplerMode = { Default = "Default" },
 			StudioCaptureScreenshotFormat = { PNG = "PNG" }, UICaptureMode = { None = "None" } },
 		Vector2 = roblox.Vector2,
@@ -39,12 +47,12 @@ for _, scenario in ipairs({ "success", "denied", "read-error", "encode-error", "
 		os = { clock = function() clock += 8; return clock end },
 		buffer = buffer,
 	} })()
-	local ok, result = pcall(module.capture, {})
+	local ok, result = pcall(module.capture, args)
 	if scenario == "denied" then
 		assert(ok and result.ok == false and not requested and not destroyed)
-	elseif scenario == "success" then
+	elseif scenario == "success" or scenario == "width-only" or scenario == "height-only" or scenario == "wide-default" or scenario == "explicit" then
 		assert(ok and result.ok and destroyed)
-		assert(result.width == 800 and result.height == 600 and result.byteLength == 42)
+		assert(result.width == expected.X and result.height == expected.Y and result.byteLength == 42)
 		assert(result.data == string.rep("A", 56))
 	else
 		assert(not ok and destroyed, "Capture leaked after " .. scenario)

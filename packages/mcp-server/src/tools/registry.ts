@@ -70,7 +70,11 @@ export function registerBridgeTools(server: McpServer, bridge: StudioBridge, con
       args: z.record(z.unknown()).default({}),
       timeoutSeconds: z.number().int().min(1).max(120).default(30)
     }
-  }, async (args) => dispatch(bridge, "studio_run_test", args, (args.timeoutSeconds + 20) * 1000));
+  }, async (args) => {
+    const result = await bridge.sendCommand("studio_run_test", args, (args.timeoutSeconds + 20) * 1000);
+    const failed = typeof result === "object" && result !== null && "ok" in result && result.ok === false;
+    return { ...jsonResult(result), isError: failed };
+  });
   server.registerTool(
     "studio_ping",
     {

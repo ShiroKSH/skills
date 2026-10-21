@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.2.2 - Unreleased
+
 ## 0.2.1 - 2026-10-21
 
 - Keep session ownership while a command is pending and use its original deadline when logging delays dispatch.

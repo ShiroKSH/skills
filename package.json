@@ -1,6 +1,6 @@
 {
   "name": "roblox-studio-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Roblox Studio skill and local MCP bridge for building maps and Luau with coding agents.",
   "license": "MIT",
@@ -35,6 +35,7 @@
     "prepare": "npm run build",
     "dev": "tsx packages/mcp-server/src/index.ts",
     "test": "vitest run",
+    "test:plugin": "npm run build:plugin && lune run scripts/test-plugin.luau",
     "check": "npm run build && npm test",
     "build:plugin": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && rojo build plugin/plugin.project.json -o dist/RobloxStudioBridge.rbxm",
     "install:plugin": "npm run build:plugin && node scripts/install-studio-plugin.mjs",

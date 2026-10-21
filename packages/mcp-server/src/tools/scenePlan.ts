@@ -69,7 +69,7 @@ export function planSceneSpec(sceneSpec: SceneSpec, config?: BridgeConfig): Scen
   }
 
   for (const instance of sceneSpec.instances) {
-    if (instance.parentPath !== "$MAP_ROOT") {
+    if (instance.parentPath !== "$MAP_ROOT" && !instance.parentPath.startsWith("$MAP_ROOT/")) {
       services.add(serviceFromPath(instance.parentPath));
     }
   }

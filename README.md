@@ -55,16 +55,19 @@ Requirements: Node.js 20 or newer and Roblox Studio.
 
 ## Install the Studio plugin
 
-Clone the repository and run the installer:
+Download [RobloxStudioBridge.rbxm from the latest release](https://github.com/ShiroKSH/skills/releases/latest/download/RobloxStudioBridge.rbxm) and put it in `%LOCALAPPDATA%\Roblox\Plugins` on Windows or `~/Documents/Roblox/Plugins` on macOS. Restart Studio after installing or updating it.
+
+To build from source, install [Rokit](https://github.com/rojo-rbx/rokit), then run:
 
 ```sh
 git clone https://github.com/ShiroKSH/skills.git
 cd skills
+rokit install
 npm install
 npm run install:plugin
 ```
 
-The command builds `dist/RobloxStudioBridge.rbxm` with Rojo and copies it into the local Roblox plugins directory on Windows or macOS. The project pins Rojo in `rokit.toml`.
+The command builds `dist/RobloxStudioBridge.rbxm` with Rojo and copies it into the local Roblox plugins directory on Windows or macOS. The project pins Rojo and Lune in `rokit.toml`.
 
 Manual fallback: run `npm run build:plugin`, then copy the `.rbxm` file into `%LOCALAPPDATA%\Roblox\Plugins` on Windows or `~/Documents/Roblox/Plugins` on macOS.
 
@@ -77,6 +80,8 @@ Manual fallback: run `npm run build:plugin`, then copy the `.rbxm` file into `%L
 5. Run `studio_ping` from the agent.
 
 The token is generated locally, is never a Roblox credential, is not persisted by the plugin, and is cleared from the panel after connection. Set `ROBLOX_STUDIO_BRIDGE_TOKEN` only when a stable local token is needed.
+
+The panel reconnects after a server restart while the token stays the same. If the server generates a new token, select `Connect` with that token. Only one Studio session can own a bridge connection. Update both the server and the plugin to 0.2.0 together.
 
 ## What the bridge exposes
 
@@ -141,10 +146,13 @@ The same workflow can move from an early blockout to a connected, interactive Ro
 
 ```sh
 npm install
+rokit install
 npm run check
 npm run validate:skill
-npm run build:plugin
+npm run test:plugin
 ```
+
+`check` runs the TypeScript build and HTTP/tool tests. `test:plugin` builds the `.rbxm`, compiles its Luau modules, and runs scene and transport regressions in Lune. It does not replace an in-Studio visual or playtest check.
 
 Pull requests receive automatic reviews from CodeRabbit, Qodo, and Sourcery. GitHub
 CodeQL scans JavaScript and TypeScript changes, while Dependabot opens grouped weekly

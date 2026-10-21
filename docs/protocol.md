@@ -4,8 +4,8 @@ The MCP server is a stdio MCP process for AI coding agents and a localhost HTTP 
 
 Studio plugins cannot reliably accept inbound sockets, so the plugin polls the Node server:
 
-1. Plugin posts `/plugin/register` with the shared token and place metadata.
-2. Plugin long-polls `POST /plugin/poll` with the shared token in the JSON body.
+1. Plugin posts `/plugin/register` with the shared token, a non-empty `clientId`, and place metadata.
+2. Plugin long-polls `POST /plugin/poll` with the shared token and registered `clientId` in the JSON body.
 3. MCP tool calls enqueue commands.
 4. Plugin executes a command in Studio and posts `/plugin/result`.
 5. Optional plugin logs go to `/plugin/output`.
@@ -14,6 +14,10 @@ Default bind is `127.0.0.1:3765`. Non-loopback binds are refused.
 
 The pre-release GET polling route was removed so credentials never appear in request URLs. Plugin and server must be updated together.
 
+Version 0.2.0 requires the registered `clientId` on every plugin request. Older plugins must be updated with the server. A different Studio session receives HTTP 409 while the current owner is active. An owner becomes stale after 35 seconds without a poll or result, allowing a replacement session to register. Replacing an owner rejects its pending work instead of transferring edits to the new place.
+
+The plugin re-registers after connection failures, with a capped backoff. Authentication failures stop reconnecting until the user supplies the correct token. Disconnecting invalidates in-flight poll responses. Result delivery retries never execute the command again.
+
 ## Command envelope
 
 ```json
@@ -21,15 +25,19 @@ The pre-release GET polling route was removed so credentials never appear in req
   "id": "uuid",
   "name": "map_apply_scene_spec",
   "args": {},
-  "createdAt": "2026-07-07T00:00:00.000Z"
+  "createdAt": "2026-10-21T00:00:00.000Z",
+  "expiresAt": "2026-10-21T00:00:30.000Z"
 }
 ```
+
+Expired commands are removed from the server queue and rejected by the plugin before execution. A timeout does not cancel an edit that is already running. Inspect Studio before retrying an edit whose result was lost.
 
 ## Result envelope
 
 ```json
 {
   "token": "shared token",
+  "clientId": "registered Studio client ID",
   "commandId": "uuid",
   "ok": true,
   "result": {}

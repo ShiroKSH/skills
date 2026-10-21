@@ -157,8 +157,10 @@
             "value": {
               "type": "array",
               "items": { "type": "number" },
-              "minItems": 3,
-              "maxItems": 12
+              "oneOf": [
+                { "minItems": 3, "maxItems": 3 },
+                { "minItems": 12, "maxItems": 12 }
+              ]
             }
           },
           "additionalProperties": false

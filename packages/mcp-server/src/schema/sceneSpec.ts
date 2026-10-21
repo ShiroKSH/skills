@@ -16,7 +16,10 @@ export const SAFE_SCENE_ROOTS = [
 export const serializedValueSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("Vector3"), value: numberTriple }),
   z.object({ type: z.literal("Color3"), value: numberTriple }),
-  z.object({ type: z.literal("CFrame"), value: z.array(z.number()).min(3).max(12) }),
+  z.object({ type: z.literal("CFrame"), value: z.array(z.number()).refine(
+    (components) => components.length === 3 || components.length === 12,
+    "CFrame requires exactly 3 position or 12 transform components"
+  ) }),
   z.object({ type: z.literal("Enum"), value: z.string().min(1) }),
   z.object({ type: z.literal("UDim2"), value: z.tuple([z.number(), z.number(), z.number(), z.number()]) }),
   z.object({ type: z.literal("BrickColor"), value: z.union([z.string(), z.number()]) }),

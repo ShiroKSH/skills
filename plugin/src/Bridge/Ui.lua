@@ -1,3 +1,5 @@
+local Studio = settings().Studio
+
 local Ui = {}
 Ui.__index = Ui
 
@@ -9,27 +11,10 @@ local function makeText(parent, name, text, position, size)
 	label.Size = size
 	label.BackgroundTransparency = 1
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.Font = Enum.Font.SourceSans
 	label.TextSize = 14
-	label.TextColor3 = Color3.fromRGB(230, 230, 230)
 	label.Parent = parent
 	return label
-end
-
-local function makeButton(parent, name, text, position, size)
-	local button = Instance.new("TextButton")
-	button.Name = name
-	button.Text = text
-	button.Position = position
-	button.Size = size
-	button.Font = Enum.Font.SourceSansSemibold
-	button.TextSize = 14
-	button.BackgroundColor3 = Color3.fromRGB(45, 48, 54)
-	button.TextColor3 = Color3.fromRGB(245, 245, 245)
-	button.BorderSizePixel = 0
-	button.Parent = parent
-	return button
 end
 
 local function makeBox(parent, name, text, position, size)
@@ -41,11 +26,26 @@ local function makeBox(parent, name, text, position, size)
 	box.ClearTextOnFocus = false
 	box.Font = Enum.Font.Code
 	box.TextSize = 13
-	box.BackgroundColor3 = Color3.fromRGB(28, 30, 34)
-	box.TextColor3 = Color3.fromRGB(245, 245, 245)
 	box.BorderSizePixel = 0
 	box.Parent = parent
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 6)
+	padding.PaddingRight = UDim.new(0, 6)
+	padding.Parent = box
 	return box
+end
+
+local function makeButton(parent, name, text, position, size)
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.Text = text
+	button.Position = position
+	button.Size = size
+	button.Font = Enum.Font.SourceSansSemibold
+	button.TextSize = 14
+	button.BorderSizePixel = 0
+	button.Parent = parent
+	return button
 end
 
 function Ui.new(plugin, toolbarButton)
@@ -56,79 +56,90 @@ function Ui.new(plugin, toolbarButton)
 	self.connectCallbacks = {}
 	self.disconnectCallbacks = {}
 	self.undoCallbacks = {}
-
-	local info = DockWidgetPluginGuiInfo.new(
-		Enum.InitialDockState.Right,
-		false,
-		false,
-		360,
-		420,
-		320,
-		280
-	)
+	local info = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 360, 460, 280, 320)
 	self.widget = plugin:CreateDockWidgetPluginGui("RobloxStudioBridge", info)
-	self.widget.Title = "Roblox Studio Bridge"
+	self.widget.Title = "Roblox Studio Bridge 0.2.0"
 
 	local root = Instance.new("Frame")
 	root.Name = "Root"
 	root.Size = UDim2.fromScale(1, 1)
-	root.BackgroundColor3 = Color3.fromRGB(22, 24, 28)
 	root.BorderSizePixel = 0
 	root.Parent = self.widget
-
-	self.statusLabel = makeText(root, "Status", "Status: Disconnected", UDim2.new(0, 12, 0, 10), UDim2.new(1, -24, 0, 24))
-	makeText(root, "HostLabel", "Host", UDim2.new(0, 12, 0, 44), UDim2.new(0, 70, 0, 24))
-	makeText(root, "PortLabel", "Port", UDim2.new(0, 232, 0, 44), UDim2.new(0, 40, 0, 24))
-	self.hostBox = makeBox(root, "HostBox", plugin:GetSetting("host") or "127.0.0.1", UDim2.new(0, 58, 0, 44), UDim2.new(0, 164, 0, 24))
-	self.portBox = makeBox(root, "PortBox", tostring(plugin:GetSetting("port") or 3765), UDim2.new(0, 272, 0, 44), UDim2.new(0, 72, 0, 24))
-	makeText(root, "TokenLabel", "Token", UDim2.new(0, 12, 0, 78), UDim2.new(0, 70, 0, 24))
-	self.tokenBox = makeBox(root, "TokenBox", "", UDim2.new(0, 58, 0, 78), UDim2.new(1, -70, 0, 24))
-
-	local connectButton = makeButton(root, "Connect", "Connect", UDim2.new(0, 12, 0, 116), UDim2.new(0, 88, 0, 30))
-	local disconnectButton = makeButton(root, "Disconnect", "Disconnect", UDim2.new(0, 108, 0, 116), UDim2.new(0, 96, 0, 30))
-	local undoButton = makeButton(root, "Undo", "Undo Last Batch", UDim2.new(0, 212, 0, 116), UDim2.new(0, 132, 0, 30))
-
-	self.dryRunButton = makeButton(root, "DryRun", "Dry Run: On", UDim2.new(0, 12, 0, 156), UDim2.new(0, 112, 0, 30))
-	self.applyButton = makeButton(root, "Apply", "Apply via MCP", UDim2.new(0, 132, 0, 156), UDim2.new(0, 112, 0, 30))
-	self.dryRun = true
-
-	self.commandLabel = makeText(root, "Commands", "Last commands / logs", UDim2.new(0, 12, 0, 198), UDim2.new(1, -24, 0, 24))
-	self.logBox = makeText(root, "LogBox", "", UDim2.new(0, 12, 0, 226), UDim2.new(1, -24, 1, -238))
+	self.root = root
+	self.statusLabel = makeText(root, "Status", "Disconnected", UDim2.fromOffset(12, 10), UDim2.new(1, -24, 0, 26))
+	makeText(root, "HostLabel", "Host", UDim2.fromOffset(12, 44), UDim2.new(1, -112, 0, 20))
+	makeText(root, "PortLabel", "Port", UDim2.new(1, -82, 0, 44), UDim2.fromOffset(70, 20))
+	self.hostBox = makeBox(root, "HostBox", plugin:GetSetting("host") or "127.0.0.1", UDim2.fromOffset(12, 68), UDim2.new(1, -104, 0, 28))
+	self.portBox = makeBox(root, "PortBox", tostring(plugin:GetSetting("port") or 3765), UDim2.new(1, -82, 0, 68), UDim2.fromOffset(70, 28))
+	makeText(root, "TokenLabel", "Token", UDim2.fromOffset(12, 104), UDim2.new(1, -24, 0, 20))
+	self.tokenBox = makeBox(root, "TokenBox", "", UDim2.fromOffset(12, 128), UDim2.new(1, -24, 0, 28))
+	self.connectionButton = makeButton(root, "Connection", "Connect", UDim2.fromOffset(12, 168), UDim2.new(0.5, -18, 0, 30))
+	self.undoButton = makeButton(root, "Undo", "Undo", UDim2.new(0.5, 6, 0, 168), UDim2.new(0.5, -18, 0, 30))
+	makeText(root, "Activity", "Activity", UDim2.fromOffset(12, 210), UDim2.new(1, -24, 0, 20))
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "LogScroll"
+	scroll.Position = UDim2.fromOffset(12, 236)
+	scroll.Size = UDim2.new(1, -24, 1, -248)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 4
+	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+	scroll.CanvasSize = UDim2.new()
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.Parent = root
+	self.logScroll = scroll
+	self.logBox = makeText(scroll, "LogBox", "", UDim2.new(), UDim2.new(1, -10, 0, 0))
+	self.logBox.AutomaticSize = Enum.AutomaticSize.Y
 	self.logBox.TextYAlignment = Enum.TextYAlignment.Top
 	self.logBox.TextWrapped = true
+	self.logBox.Font = Enum.Font.Code
+	self.logBox.TextSize = 12
 
-	connectButton.MouseButton1Click:Connect(function()
+	self.connectionButton.MouseButton1Click:Connect(function()
+		if self.connectionActive then
+			for _, callback in ipairs(self.disconnectCallbacks) do
+				callback()
+			end
+			return
+		end
 		local options = self:getConnectionOptions()
-		plugin:SetSetting("host", options.host)
-		plugin:SetSetting("port", options.port)
 		for _, callback in ipairs(self.connectCallbacks) do
-			callback(options)
-		end
-		self.tokenBox.Text = ""
-	end)
-
-	disconnectButton.MouseButton1Click:Connect(function()
-		for _, callback in ipairs(self.disconnectCallbacks) do
-			callback()
+			if callback(options) then
+				plugin:SetSetting("host", options.host)
+				plugin:SetSetting("port", tonumber(options.port))
+				self.tokenBox.Text = ""
+			end
 		end
 	end)
-
-	undoButton.MouseButton1Click:Connect(function()
+	self.undoButton.MouseButton1Click:Connect(function()
 		for _, callback in ipairs(self.undoCallbacks) do
 			callback()
 		end
 	end)
-
-	self.dryRunButton.MouseButton1Click:Connect(function()
-		self.dryRun = not self.dryRun
-		self.dryRunButton.Text = self.dryRun and "Dry Run: On" or "Dry Run: Off"
+	self.widget:GetPropertyChangedSignal("Enabled"):Connect(function()
+		toolbarButton:SetActive(self.widget.Enabled)
 	end)
-
-	self.applyButton.MouseButton1Click:Connect(function()
-		self:log("Apply is triggered by MCP map_apply_scene_spec dryRun=false")
+	self.themeConnection = Studio.ThemeChanged:Connect(function()
+		self:applyTheme()
 	end)
-
+	self:applyTheme()
 	return self
+end
+
+function Ui:applyTheme()
+	local theme = Studio.Theme
+	self.root.BackgroundColor3 = theme:GetColor(Enum.StudioStyleGuideColor.MainBackground)
+	for _, child in ipairs(self.root:GetDescendants()) do
+		if child:IsA("TextLabel") then
+			child.TextColor3 = theme:GetColor(Enum.StudioStyleGuideColor.MainText)
+		elseif child:IsA("TextBox") then
+			child.TextColor3 = theme:GetColor(Enum.StudioStyleGuideColor.MainText)
+			child.BackgroundColor3 = theme:GetColor(Enum.StudioStyleGuideColor.InputFieldBackground)
+		elseif child:IsA("TextButton") then
+			child.TextColor3 = theme:GetColor(Enum.StudioStyleGuideColor.MainText)
+			child.BackgroundColor3 = theme:GetColor(Enum.StudioStyleGuideColor.Button)
+		end
+	end
 end
 
 function Ui:toggle()
@@ -136,34 +147,42 @@ function Ui:toggle()
 end
 
 function Ui:setStatus(status)
-	self.statusLabel.Text = "Status: " .. tostring(status)
+	self.statusLabel.Text = tostring(status)
+	self.connectionActive = status == "Connected" or status == "Connecting" or status == "Reconnecting"
+	self.connectionButton.Text = self.connectionActive and "Disconnect" or "Connect"
+	for _, box in ipairs({ self.hostBox, self.portBox, self.tokenBox }) do
+		box.TextEditable = not self.connectionActive
+	end
 end
 
 function Ui:log(line)
+	local scroll = self.logScroll
+	local atBottom = scroll.CanvasPosition.Y + scroll.AbsoluteWindowSize.Y >= scroll.AbsoluteCanvasSize.Y - 20
 	table.insert(self.logs, os.date("%H:%M:%S") .. " " .. tostring(line))
 	while #self.logs > 100 do
 		table.remove(self.logs, 1)
 	end
 	self.logBox.Text = table.concat(self.logs, "\n")
+	if atBottom then
+		task.defer(function()
+			if not self.destroyed then
+				scroll.CanvasPosition = Vector2.new(0, math.max(0, scroll.AbsoluteCanvasSize.Y - scroll.AbsoluteWindowSize.Y))
+			end
+		end)
+	end
 end
 
 function Ui:getLogs(lines)
-	local count = math.min(lines or 100, #self.logs)
+	local count = math.clamp(math.floor(tonumber(lines) or 100), 0, #self.logs)
 	local output = {}
 	for index = #self.logs - count + 1, #self.logs do
-		if self.logs[index] then
-			table.insert(output, self.logs[index])
-		end
+		table.insert(output, self.logs[index])
 	end
 	return output
 end
 
 function Ui:getConnectionOptions()
-	return {
-		host = self.hostBox.Text,
-		port = tonumber(self.portBox.Text) or 3765,
-		token = self.tokenBox.Text,
-	}
+	return { host = self.hostBox.Text, port = self.portBox.Text, token = self.tokenBox.Text }
 end
 
 function Ui:onConnect(callback)
@@ -176,6 +195,12 @@ end
 
 function Ui:onUndo(callback)
 	table.insert(self.undoCallbacks, callback)
+end
+
+function Ui:destroy()
+	self.destroyed = true
+	self.themeConnection:Disconnect()
+	self.widget:Destroy()
 end
 
 return Ui

@@ -18,7 +18,7 @@ button.Click:Connect(function()
 end)
 
 ui:onConnect(function(options)
-	transport:start(options)
+	return transport:start(options)
 end)
 
 ui:onDisconnect(function()
@@ -31,6 +31,7 @@ end)
 
 plugin.Unloading:Connect(function()
 	transport:stop()
+	ui:destroy()
 end)
 
 ui:setStatus("Disconnected")

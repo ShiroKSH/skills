@@ -77,6 +77,15 @@ describe("SceneSpec planning", () => {
     expect(aiPlan.risks.join("\n")).not.toContain("allowExistingEdit");
   });
 
+  it("counts nested map parents as Workspace instead of a separate service", () => {
+    const plan = planSceneSpec(parseSceneSpec({
+      mapName: "Nested Cabin",
+      style: "modern",
+      instances: [{ className: "Part", name: "Wall", parentPath: "$MAP_ROOT/Buildings/Cabin" }]
+    }), config);
+    expect(plan.servicesTouched).toEqual(["Workspace"]);
+  });
+
   it("accepts rich high-level map fields and includes them in planning", () => {
     const spec = parseSceneSpec({
       mapName: "Rich City",

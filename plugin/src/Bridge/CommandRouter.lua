@@ -120,7 +120,7 @@ function CommandRouter:handle(name, args)
 
 	if name == "studio_ping" then
 		return {
-			pluginVersion = "0.1.0",
+			pluginVersion = "0.2.0",
 			placeName = game.Name,
 			placeId = game.PlaceId,
 			status = "Connected",

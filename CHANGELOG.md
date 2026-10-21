@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-10-21
+
+- Reconnect after bridge restarts, cancel disconnected polls, retry result delivery without replaying edits, and reject expired commands.
+- Bind queued work to one Studio client, clear timed-out commands, and settle pending commands when the bridge stops or logging fails.
+- Resolve nested SceneSpec parents regardless of declaration order and report missing or cyclic parent paths.
+- Preserve CFrame rotation and account for rotated part bounds when grounding generated maps.
+- Refresh the plugin panel with Studio theme colors, responsive connection fields, a Connect/Disconnect toggle, and scrollable activity logs.
+- Add HTTP integration coverage and executable Luau regression tests against the built plugin model.
 
 - Add automatic CodeRabbit, Qodo, Sourcery, CodeQL, Dependabot, and secret-scanning review layers for pull requests.
 - Rename the repository to `skills` and the bundled integration to `roblox-studio`.

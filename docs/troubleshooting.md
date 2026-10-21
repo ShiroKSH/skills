@@ -14,6 +14,22 @@
 - Check host `127.0.0.1` and port.
 - Check token length and copy/paste whitespace.
 
+## Connection rejected or authentication failed
+
+- Update both the MCP server and Studio plugin to 0.2.0, then restart them.
+- Disconnect another Studio session using the same bridge. After a closed session stops polling, ownership expires in 35 seconds.
+- If the server restarted with a new token, paste that token and connect again. A stable `ROBLOX_STUDIO_BRIDGE_TOKEN` allows automatic reconnection.
+
+## A command timed out
+
+- Inspect Studio before retrying an edit. A running edit may have completed even if its result was lost.
+- Queued commands expire and are not replayed after reconnection.
+- The plugin retries result delivery, not the scene edit itself.
+
+## Studio reports an expired channel build
+
+Install the current production Roblox Studio from [Roblox Create](https://create.roblox.com/). This is a Studio installation error, not a bridge token error. The MCP bridge cannot update or bypass an expired Studio build.
+
 ## Apply fails after dry-run
 
 - Read `risks` from the dry-run response.

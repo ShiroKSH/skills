@@ -86,19 +86,32 @@ local function resolveParent(parentPath, mapRoot)
 		return mapRoot
 	end
 
-	local resolved = InstanceSerializer.resolve(parentPath)
-	if not resolved then
-		error(("Parent path not found: %s"):format(tostring(parentPath)))
+	if tostring(parentPath):sub(1, 10) == "$MAP_ROOT/" then
+		local current = mapRoot
+		for _, segment in ipairs(string.split(parentPath:sub(11), "/")) do
+			if segment == "" then
+				return nil
+			end
+			current = current:FindFirstChild(segment)
+			if not current then
+				return nil
+			end
+		end
+		return current
 	end
-	return resolved
+	return InstanceSerializer.resolve(parentPath)
 end
 
-local function createSpecInstance(instanceSpec, mapRoot, createdPaths)
+local function createSpecInstance(instanceSpec, parent, createdPaths)
 	Safety.assertAllowedClass(instanceSpec.className)
 	local instance = Instance.new(instanceSpec.className)
 	instance.Name = Safety.sanitizeName(instanceSpec.name)
-	InstanceSerializer.writeProperties(instance, instanceSpec.properties or {})
-	instance.Parent = resolveParent(instanceSpec.parentPath, mapRoot)
+	local ok, err = pcall(InstanceSerializer.writeProperties, instance, instanceSpec.properties or {})
+	if not ok then
+		instance:Destroy()
+		error(err)
+	end
+	instance.Parent = parent
 	table.insert(createdPaths, InstanceSerializer.pathOf(instance))
 	return instance
 end
@@ -913,6 +926,15 @@ local function shiftVectorField(container, field, deltaY)
 	container[field] = writeVectorLike(container[field], vector + Vector3.new(0, deltaY, 0))
 end
 
+local function instanceFrame(properties)
+	local frame = properties.CFrame and InstanceSerializer.deserialize(properties.CFrame)
+	local position = vectorOrNil(properties.Position)
+	if typeof(frame) == "CFrame" then
+		return position and frame.Rotation + position or frame
+	end
+	return position and CFrame.new(position) or nil
+end
+
 local function minSceneBottom(sceneSpec)
 	local minimum = math.huge
 	local function consider(bottom)
@@ -930,10 +952,13 @@ local function minSceneBottom(sceneSpec)
 	end
 	for _, instanceSpec in ipairs(sceneSpec.instances or {}) do
 		local properties = instanceSpec.properties or {}
-		local position = vectorOrNil(properties.Position)
+		local frame = instanceFrame(properties)
 		local size = vectorOrNil(properties.Size)
-		if position and size then
-			consider(position.Y - size.Y / 2)
+		if frame and size then
+			local halfHeight = (math.abs(frame.RightVector.Y) * size.X
+				+ math.abs(frame.UpVector.Y) * size.Y
+				+ math.abs(frame.LookVector.Y) * size.Z) / 2
+			consider(frame.Position.Y - halfHeight)
 		end
 	end
 	for _, building in ipairs(sceneSpec.buildings or sceneSpec.structures or {}) do
@@ -975,9 +1000,9 @@ local function sceneProbeCenter(sceneSpec)
 		end
 	end
 	for _, instanceSpec in ipairs(sceneSpec.instances or {}) do
-		local position = vectorOrNil((instanceSpec.properties or {}).Position)
-		if position then
-			return position
+		local frame = instanceFrame(instanceSpec.properties or {})
+		if frame then
+			return frame.Position
 		end
 	end
 	for _, poi in ipairs(sceneSpec.pois or {}) do
@@ -1052,6 +1077,10 @@ local function groundSceneSpec(sceneSpec)
 	for _, instanceSpec in ipairs(sceneSpec.instances or {}) do
 		if instanceSpec.properties then
 			shiftVectorField(instanceSpec.properties, "Position", deltaY)
+			if instanceSpec.properties.CFrame then
+				local frame = InstanceSerializer.deserialize(instanceSpec.properties.CFrame)
+				instanceSpec.properties.CFrame = InstanceSerializer.serialize(frame + Vector3.new(0, deltaY, 0))
+			end
 		end
 	end
 	for _, building in ipairs(sceneSpec.buildings or sceneSpec.structures or {}) do
@@ -1128,8 +1157,24 @@ function SceneApplier.apply(sceneSpec, dryRun)
 		createZone(zone, zonesFolder, createdPaths)
 	end
 
-	for _, instanceSpec in ipairs(sceneSpec.instances or {}) do
-		createSpecInstance(instanceSpec, mapRoot, createdPaths)
+	local pendingInstances = sceneSpec.instances or {}
+	while #pendingInstances > 0 do
+		local unresolved = {}
+		for _, instanceSpec in ipairs(pendingInstances) do
+			local parent = resolveParent(instanceSpec.parentPath, mapRoot)
+			if parent then
+				if not sceneSpec.allowExistingEdit then
+					Safety.assertGeneratedPath(InstanceSerializer.pathOf(parent))
+				end
+				createSpecInstance(instanceSpec, parent, createdPaths)
+			else
+				table.insert(unresolved, instanceSpec)
+			end
+		end
+		if #unresolved == #pendingInstances then
+			error(("Missing or cyclic parent path: %s"):format(tostring(unresolved[1].parentPath)))
+		end
+		pendingInstances = unresolved
 	end
 
 	local palette = paletteFor(sceneSpec)

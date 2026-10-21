@@ -4,9 +4,6 @@ import { parseSceneSpec } from "../src/schema/sceneSpec.js";
 
 const sceneApplier = readFileSync("plugin/src/Bridge/SceneApplier.lua", "utf8");
 const commandRouter = readFileSync("plugin/src/Bridge/CommandRouter.lua", "utf8");
-const httpTransport = readFileSync("plugin/src/Bridge/HttpTransport.lua", "utf8");
-const pluginUi = readFileSync("plugin/src/Bridge/Ui.lua", "utf8");
-const protocol = readFileSync("packages/mcp-server/src/protocol.ts", "utf8");
 const registry = readFileSync("packages/mcp-server/src/tools/registry.ts", "utf8");
 
 describe("plugin visual-readiness contracts", () => {
@@ -83,15 +80,15 @@ describe("plugin visual-readiness contracts", () => {
     expect(sceneApplier).toContain("validateVisibleMapVersion");
   });
 
-  it("keeps the bridge token on loopback and out of poll URLs and plugin settings", () => {
-    expect(httpTransport).toContain('host == "127.0.0.1"');
-    expect(httpTransport).toContain('host == "localhost"');
-    expect(httpTransport).toContain('host == "::1"');
-    expect(httpTransport).toContain('self:request("POST", "/plugin/poll"');
-    expect(httpTransport).not.toContain("/plugin/poll?token=");
-    expect(pluginUi).not.toContain('plugin:SetSetting("token"');
-    expect(pluginUi).not.toContain('plugin:GetSetting("token"');
-    expect(protocol).toContain('request.method === "POST" && url.pathname === "/plugin/poll"');
-    expect(protocol).not.toContain('request.method === "GET" && url.pathname === "/plugin/poll"');
+  it("rejects incomplete CFrame rotations before reaching Studio", () => {
+    for (const length of [4, 6, 9, 11]) {
+      expect(() => parseSceneSpec({
+        mapName: "Invalid Transform",
+        style: "modern",
+        instances: [{ className: "Part", name: "Wall", properties: {
+          CFrame: { type: "CFrame", value: Array(length).fill(0) }
+        } }]
+      })).toThrow("CFrame requires exactly");
+    }
   });
 });

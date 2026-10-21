@@ -17,12 +17,14 @@ type QueuedCommand = {
   name: string;
   args: unknown;
   createdAt: string;
+  expiresAt: string;
 };
 
 type PendingCommand = {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
   timer: NodeJS.Timeout;
+  clientId: string;
 };
 
 type PollWaiter = {
@@ -48,6 +50,7 @@ export class StudioBridge {
   private readonly pending = new Map<string, PendingCommand>();
   private readonly waiters: PollWaiter[] = [];
   private readonly outputLines: string[] = [];
+  private stopping = false;
 
   constructor(
     private readonly config: BridgeConfig,
@@ -59,19 +62,34 @@ export class StudioBridge {
       return;
     }
 
-    this.server = createServer((request, response) => {
+    this.stopping = false;
+    const server = createServer((request, response) => {
       void this.handleRequest(request, response).catch((error: unknown) => {
-        this.sendJson(response, 500, { ok: false, error: error instanceof Error ? error.message : String(error) });
+        const statusCode = error instanceof RequestError ? error.statusCode : 500;
+        this.sendJson(response, statusCode, { ok: false, error: error instanceof Error ? error.message : String(error) });
       });
     });
 
     await new Promise<void>((resolveStart, rejectStart) => {
-      this.server?.once("error", rejectStart);
-      this.server?.listen(this.config.port, this.config.host, () => resolveStart());
+      server.once("error", rejectStart);
+      server.listen(this.config.port, this.config.host, () => {
+        server.removeListener("error", rejectStart);
+        resolveStart();
+      });
     });
+    this.server = server;
   }
 
   async stop(): Promise<void> {
+    this.stopping = true;
+    this.plugin = undefined;
+    this.lastSeenAt = 0;
+    this.queue.length = 0;
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error("Studio bridge stopped before the command completed"));
+    }
+    this.pending.clear();
     for (const waiter of this.waiters.splice(0)) {
       clearTimeout(waiter.timer);
       this.sendJson(waiter.response, 200, { ok: true, command: null });
@@ -83,16 +101,18 @@ export class StudioBridge {
         return;
       }
       this.server.close(() => resolveStop());
+      this.server.closeAllConnections();
       this.server = undefined;
     });
   }
 
   getStatus(): BridgeStatus {
-    const connected = Date.now() - this.lastSeenAt < 20_000;
+    const connected = !this.stopping && !!this.plugin && Date.now() - this.lastSeenAt < 35_000;
+    const address = this.server?.address();
     return {
       server: {
         host: this.config.host,
-        port: this.config.port
+        port: address && typeof address !== "string" ? address.port : this.config.port
       },
       connected,
       lastSeenAt: this.lastSeenAt > 0 ? new Date(this.lastSeenAt).toISOString() : undefined,
@@ -113,17 +133,24 @@ export class StudioBridge {
       id: randomUUID(),
       name,
       args,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + timeoutMs).toISOString()
     };
+    const clientId = this.plugin!.clientId;
 
     await this.logger.log("command_queued", { commandId: command.id, name, args });
+    if (!this.getStatus().connected || this.plugin?.clientId !== clientId) {
+      throw new Error("Studio connection changed before the command was queued");
+    }
 
     const resultPromise = new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(command.id);
+        const index = this.queue.findIndex((queued) => queued.id === command.id);
+        if (index >= 0) this.queue.splice(index, 1);
         reject(new Error(`Timed out waiting for Studio result for ${name}`));
       }, timeoutMs);
-      this.pending.set(command.id, { resolve, reject, timer });
+      this.pending.set(command.id, { resolve, reject, timer, clientId });
     });
 
     this.queue.push(command);
@@ -132,7 +159,7 @@ export class StudioBridge {
   }
 
   private async handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    const url = new URL(request.url ?? "/", `http://${this.config.host}:${this.config.port}`);
+    const url = new URL(request.url ?? "/", "http://localhost");
 
     if (request.method === "GET" && url.pathname === "/health") {
       this.sendJson(response, 200, {
@@ -146,26 +173,43 @@ export class StudioBridge {
     if (request.method === "POST" && url.pathname === "/plugin/register") {
       const body = await this.readJson(request);
       this.requireBodyToken(body);
+      const clientId = body.clientId;
+      if (typeof clientId !== "string" || !clientId.trim()) {
+        throw new RequestError(400, "A non-empty Studio clientId is required");
+      }
+      if (this.getStatus().connected && this.plugin?.clientId !== clientId) {
+        throw new RequestError(409, "Another Studio session is connected");
+      }
+      if (this.plugin && this.plugin.clientId !== clientId) {
+        for (const pending of this.pending.values()) {
+          clearTimeout(pending.timer);
+          pending.reject(new Error("Studio session changed before the command completed"));
+        }
+        this.pending.clear();
+        this.queue.length = 0;
+        for (const waiter of this.waiters.splice(0)) {
+          clearTimeout(waiter.timer);
+          this.sendJson(waiter.response, 409, { ok: false, error: "Studio session changed" });
+        }
+      }
       this.lastSeenAt = Date.now();
       this.plugin = {
-        clientId: String(body.clientId ?? "studio"),
+        clientId,
         pluginVersion: String(body.pluginVersion ?? "unknown"),
         placeName: String(body.placeName ?? "unknown"),
         placeId: String(body.placeId ?? "unknown"),
         status: String(body.status ?? "Connected")
       };
       await this.logger.log("plugin_registered", { plugin: this.plugin });
-      this.sendJson(response, 200, { ok: true, serverVersion: "0.1.0" });
+      this.sendJson(response, 200, { ok: true, serverVersion: "0.2.0" });
       return;
     }
 
     if (request.method === "POST" && url.pathname === "/plugin/poll") {
       const body = await this.readJson(request);
       this.requireBodyToken(body);
+      this.requireClient(body);
       this.lastSeenAt = Date.now();
-      if (this.plugin && body.clientId) {
-        this.plugin.clientId = String(body.clientId);
-      }
       this.holdOrSendCommand(response);
       return;
     }
@@ -173,6 +217,7 @@ export class StudioBridge {
     if (request.method === "POST" && url.pathname === "/plugin/result") {
       const body = await this.readJson(request);
       this.requireBodyToken(body);
+      this.requireClient(body);
       this.lastSeenAt = Date.now();
       await this.receiveResult(body);
       this.sendJson(response, 200, { ok: true });
@@ -182,6 +227,7 @@ export class StudioBridge {
     if (request.method === "POST" && url.pathname === "/plugin/output") {
       const body = await this.readJson(request);
       this.requireBodyToken(body);
+      this.requireClient(body);
       const lines = Array.isArray(body.lines) ? body.lines.map(String) : [String(body.line ?? "")];
       this.outputLines.push(...lines.filter((line) => line.length > 0));
       while (this.outputLines.length > 500) {
@@ -195,6 +241,7 @@ export class StudioBridge {
   }
 
   private holdOrSendCommand(response: ServerResponse): void {
+    if (response.destroyed) return;
     const command = this.queue.shift();
     if (command) {
       this.sendJson(response, 200, { ok: true, command });
@@ -212,20 +259,25 @@ export class StudioBridge {
       }, 25_000)
     };
     this.waiters.push(waiter);
+    response.once("close", () => {
+      clearTimeout(waiter.timer);
+      const index = this.waiters.indexOf(waiter);
+      if (index >= 0) this.waiters.splice(index, 1);
+    });
   }
 
   private flushPollWaiter(): void {
-    const waiter = this.waiters.shift();
-    const command = this.queue.shift();
-    if (!waiter || !command) {
-      if (command) {
-        this.queue.unshift(command);
+    while (this.waiters.length && this.queue.length) {
+      const waiter = this.waiters.shift()!;
+      if (waiter.response.destroyed || waiter.response.writableEnded) {
+        clearTimeout(waiter.timer);
+        continue;
       }
+      const command = this.queue.shift()!;
+      clearTimeout(waiter.timer);
+      this.sendJson(waiter.response, 200, { ok: true, command });
       return;
     }
-
-    clearTimeout(waiter.timer);
-    this.sendJson(waiter.response, 200, { ok: true, command });
   }
 
   private async receiveResult(body: Record<string, unknown>): Promise<void> {
@@ -235,17 +287,21 @@ export class StudioBridge {
       await this.logger.log("command_result_orphaned", { commandId });
       return;
     }
+    if (pending.clientId !== this.plugin?.clientId) {
+      throw new RequestError(409, "Command belongs to another Studio session");
+    }
 
     this.pending.delete(commandId);
     clearTimeout(pending.timer);
-    await this.logger.log("command_result", { commandId, ok: body.ok === true });
-
-    if (body.ok === true) {
-      pending.resolve(body.result);
-      return;
+    try {
+      await this.logger.log("command_result", { commandId, ok: body.ok === true });
+    } finally {
+      if (body.ok === true) {
+        pending.resolve(body.result);
+      } else {
+        pending.reject(new Error(String(body.error ?? "Studio command failed")));
+      }
     }
-
-    pending.reject(new Error(String(body.error ?? "Studio command failed")));
   }
 
   private async readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
@@ -256,7 +312,7 @@ export class StudioBridge {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       total += buffer.length;
       if (total > 1_000_000) {
-        throw new Error("Request body too large");
+        throw new RequestError(413, "Request body too large");
       }
       chunks.push(buffer);
     }
@@ -265,7 +321,22 @@ export class StudioBridge {
     if (!text) {
       return {};
     }
-    return JSON.parse(text) as Record<string, unknown>;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new RequestError(400, "Request body must be valid JSON");
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new RequestError(400, "Request body must be a JSON object");
+    }
+    return parsed as Record<string, unknown>;
+  }
+
+  private requireClient(body: Record<string, unknown>): void {
+    if (!this.plugin || body.clientId !== this.plugin.clientId) {
+      throw new RequestError(409, "Register this Studio session before polling or sending results");
+    }
   }
 
   private requireBodyToken(body: Record<string, unknown>): void {
@@ -276,12 +347,12 @@ export class StudioBridge {
     const expected = Buffer.from(this.config.token);
     const actual = Buffer.from(candidate);
     if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-      throw new Error("Invalid bridge token");
+      throw new RequestError(401, "Invalid bridge token");
     }
   }
 
   private sendJson(response: ServerResponse, statusCode: number, body: unknown): void {
-    if (response.writableEnded) {
+    if (response.writableEnded || response.destroyed) {
       return;
     }
     response.writeHead(statusCode, {
@@ -289,5 +360,11 @@ export class StudioBridge {
       "cache-control": "no-store"
     });
     response.end(JSON.stringify(body));
+  }
+}
+
+class RequestError extends Error {
+  constructor(readonly statusCode: number, message: string) {
+    super(message);
   }
 }

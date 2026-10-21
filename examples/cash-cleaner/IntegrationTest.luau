@@ -10,6 +10,9 @@ return function(args)
 	end
 	assert(prompts == 13, "Expected 13 active prompts")
 	assert(countdowns == 4, "Expected four station countdowns")
+	local door = script.Parent.Parent:FindFirstChild("FrontDoorPanel_GlassFunctional", true)
+	assert(door and door.CanCollide, "Closed entrance must block traversal")
+	result.closedDoorCollides = true
 	result.activePrompts = prompts
 	result.stationCountdowns = countdowns
 	if args and args.verifyPlayer then

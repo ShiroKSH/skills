@@ -175,7 +175,7 @@ end
 
 local door = root:FindFirstChild("FrontDoorPanel_GlassFunctional", true)
 if door and door:IsA("BasePart") then
-	door.CanCollide = false
+	door.CanCollide = true
 	local closed = door.CFrame
 	local opened = false
 	local moving = false
@@ -185,11 +185,15 @@ if door and door:IsA("BasePart") then
 		generation += 1
 		local token = generation
 		opened, moving = open, true
+		door.CanCollide = false
 		prompt.ActionText = open and "Close" or "Open"
 		local tween = TweenService:Create(door, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			CFrame = open and closed * CFrame.new(7.1, 0, 0) or closed,
 		})
-		tween.Completed:Once(function() moving = false end)
+		tween.Completed:Once(function()
+			moving = false
+			door.CanCollide = not opened
+		end)
 		tween:Play()
 		if open then
 			task.delay(4.5, function()

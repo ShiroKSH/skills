@@ -10,6 +10,6 @@
     "cpuBoundTimeout": { "ok": false, "timedOut": true, "elapsedMs": 13463, "runnerCleanedUp": true }
   },
   "bridgeRespondedAfterEveryTest": true,
-  "playMode": { "ok": true, "playerSpawnVerified": true, "populatedHudLabels": 3 },
+  "playMode": { "ok": true, "playerSpawnVerified": true, "populatedHudLabels": 3, "closedDoorCollides": true },
   "viewportCapture": { "captured": false, "nativePermissionAvailable": false, "permissionPromptOpened": false }
 }

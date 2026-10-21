@@ -25,7 +25,8 @@ for _, scenario in ipairs({ "success", "denied", "read-error", "encode-error", "
 		},
 		EncodingService = { Base64Encode = function(_, value)
 			if scenario == "encode-error" then error("Expected encode failure") end
-			return value
+			assert(buffer.len(value) == 42)
+			return buffer.fromstring(string.rep("A", 56))
 		end },
 	}
 	local module = luau.load(source, { environment = {
@@ -43,6 +44,8 @@ for _, scenario in ipairs({ "success", "denied", "read-error", "encode-error", "
 		assert(ok and result.ok == false and not requested and not destroyed)
 	elseif scenario == "success" then
 		assert(ok and result.ok and destroyed)
+		assert(result.width == 800 and result.height == 600 and result.byteLength == 42)
+		assert(result.data == string.rep("A", 56))
 	else
 		assert(not ok and destroyed, "Capture leaked after " .. scenario)
 	end

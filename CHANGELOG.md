@@ -6,6 +6,7 @@
 - Run reviewed ModuleScript tests in native Studio Run or Play mode with explicit confirmation, timeout cleanup, and an edit-side stop watchdog.
 - Capture viewport-only PNGs after user-granted native permission without automatic prompts or desktop capture.
 - Add the Cash Cleaner gameplay example with ownership release, cancelled-job refunds, capacity conservation, station countdowns, and eight executable regression checks.
+- Require a specific export subtree instead of a managed container, keep the closed example door collidable, and synchronize both agent plugin manifests.
 
 ## 0.2.2 - 2026-10-21
 

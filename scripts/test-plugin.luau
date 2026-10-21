@@ -353,4 +353,16 @@ test("a restarted bridge causes re-registration before polling again", function(
 	assert(registrations == 2 and ui.status == "Disconnected")
 end)
 
+test("model exports reject managed containers and unrelated roots", function()
+	local f = fixture()
+	local serializer = f.load("InstanceSerializer")
+	local exporter = f.load("ModelExporter")
+	for _, path in ipairs({ "Workspace/MapDrafts", "Workspace/Builds", "Workspace/AI_Generated" }) do
+		serializer.ensureFolder(path)
+		local ok, err = pcall(exporter.export, { rootPath = path })
+		assert(not ok and string.find(tostring(err), "specific map", 1, true))
+	end
+	assert(not pcall(exporter.export, { rootPath = "Workspace" }))
+end)
+
 print(string.format("%d plugin behavior tests passed", passed))

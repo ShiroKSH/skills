@@ -7,6 +7,12 @@ const commandRouter = readFileSync("plugin/src/Bridge/CommandRouter.lua", "utf8"
 const registry = readFileSync("packages/mcp-server/src/tools/registry.ts", "utf8");
 
 describe("plugin visual-readiness contracts", () => {
+  it("keeps agent manifests and workspace packages on the release version", () => {
+    const version = JSON.parse(readFileSync("package.json", "utf8")).version;
+    for (const path of [".claude-plugin/plugin.json", ".codex-plugin/plugin.json", "packages/mcp-server/package.json"]) {
+      expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(version);
+    }
+  });
   it("parses functional doors that bind to existing visible parts", () => {
     const spec = parseSceneSpec({
       mapName: "Door Binding",

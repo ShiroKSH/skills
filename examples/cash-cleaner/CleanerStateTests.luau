@@ -72,6 +72,9 @@ return function(CleanerState)
 		assert(cleaner:state(101).bundled == 12)
 	end)
 	test("upgrades charge once and alter a real station", function()
+		local callbacks = {}
+		for key in pairs(CleanerState.upgrades) do callbacks[key] = function() return key end end
+		for key, callback in pairs(callbacks) do assert(callback() == key, "Luau closures must retain each loop binding") end
 		local cleaner = prepared("wet")
 		cleaner:state(101).cash = 100
 		assert(cleaner:upgrade(101, "dryer"))

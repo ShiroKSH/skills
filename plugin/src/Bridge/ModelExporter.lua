@@ -7,6 +7,7 @@ function ModelExporter.export(args)
 	Safety.assertGeneratedPath(args.rootPath)
 	local root = InstanceSerializer.resolve(args.rootPath)
 	assert(root, "Export root not found")
+	assert(not Safety.SafeRoots[InstanceSerializer.pathOf(root)], "Choose a specific map below the managed container")
 	local count = #root:GetDescendants() + 1
 	assert(count <= 10000, "Export exceeds 10000 instances")
 	local data = game:GetService("SerializationService"):SerializeInstancesAsync({ root })

@@ -78,7 +78,7 @@ Expired commands are removed from the server queue and rejected by the plugin be
 
 ## Backups And Captures
 
-`studio_export_model` takes a managed `rootPath` and saves a native `.rbxm` under `generated/exports`. Limits are 10,000 instances and 8 MiB of binary data. The result contains the local artifact path and counts, not the encoded model. It does not modify the selected root or upload it.
+`studio_export_model` takes a managed `rootPath` and saves a native `.rbxm` under `generated/exports`. Select a specific map or subtree, not the managed container itself. Limits are 10,000 instances and 8 MiB of binary data. The result contains the local artifact path and counts, not the encoded model. It does not modify the selected root or upload it.
 
 `studio_capture_viewport` accepts optional integer `width` and `height` from 1 to 4096 and saves a viewport-only PNG under `generated/captures`. It requires native Studio screenshot permission and an active rendered place. Grant permission with the plugin's `Allow viewport capture` button. Tool calls never prompt. An unavailable capture returns an error without falling back to desktop screenshots.
 

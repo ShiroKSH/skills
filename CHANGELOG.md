@@ -8,6 +8,7 @@
 - Add the Cash Cleaner gameplay example with ownership release, cancelled-job refunds, capacity conservation, station countdowns, and eight executable regression checks.
 - Require a specific export subtree instead of a managed container, keep the closed example door collidable, and synchronize both agent plugin manifests.
 - Restrict artifact permissions on POSIX, clean up failed writes, propagate test failures as MCP errors, recover from unserializable results, and preserve viewport proportions when dimensions are omitted.
+- Drain oversized HTTP requests without resetting a reusable bridge connection.
 
 ## 0.2.2 - 2026-10-21
 

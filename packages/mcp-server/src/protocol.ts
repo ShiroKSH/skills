@@ -313,10 +313,11 @@ export class StudioBridge {
     const chunks: Buffer[] = [];
     let total = 0;
 
-    for await (const chunk of request) {
+    for await (const chunk of request.iterator({ destroyOnReturn: false })) {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       total += buffer.length;
       if (total > maximumBytes) {
+        request.resume();
         throw new RequestError(413, "Request body too large");
       }
       chunks.push(buffer);

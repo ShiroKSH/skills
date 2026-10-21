@@ -77,9 +77,14 @@ describe("Studio HTTP bridge", () => {
 
   it("does not let another Studio steal an active session or its queue", async () => {
     await post("register");
+    const result = bridge.sendCommand("studio_create_instance", {});
     expect((await post("register", { clientId: "studio-b" })).status).toBe(409);
     expect((await post("poll", { clientId: "studio-b" })).status).toBe(409);
     expect(bridge.getStatus().plugin?.clientId).toBe("studio-a");
+    const { command } = await (await post("poll")).json();
+    expect(command.name).toBe("studio_create_instance");
+    await post("result", { commandId: command.id, ok: true, result: "original place" });
+    await expect(result).resolves.toBe("original place");
   });
 
   it("rejects missing client IDs without consuming commands or accepting results", async () => {
@@ -103,16 +108,23 @@ describe("Studio HTTP bridge", () => {
     expect(bridge.getStatus().connected).toBe(false);
   });
 
-  it("keeps long-running work with its owner until its deadline", async () => {
+  it("keeps long-running work with its owner beyond the idle lease", async () => {
     await post("register");
-    const result = bridge.sendCommand("studio_create_instance", {}, 100);
-    const rejection = expect(result).rejects.toThrow("Timed out");
+    const result = bridge.sendCommand("studio_create_instance", {}, 60_000);
+    const rejection = expect(result).rejects.toThrow("bridge stopped");
     await (await post("poll")).json();
     const now = Date.now();
     vi.spyOn(Date, "now").mockReturnValue(now + 36_000);
     expect(bridge.getStatus().connected).toBe(true);
     expect((await post("register", { clientId: "studio-b" })).status).toBe(409);
+    await bridge.stop();
     await rejection;
+  });
+
+  it("replaces an idle stale Studio owner without transferring its session", async () => {
+    await post("register");
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + 36_000);
     expect((await post("register", { clientId: "studio-b" })).status).toBe(200);
     expect((await post("result", { commandId: "old", ok: true })).status).toBe(409);
     const fresh = bridge.sendCommand("studio_ping", {});

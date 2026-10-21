@@ -20,6 +20,8 @@ The plugin re-registers after connection failures, with a capped backoff. Authen
 
 Result delivery retries continue until acknowledgement, a permanent rejection, disconnect, or the command deadline. A detected place change stops the connection before the next command can execute. Inspect the place and connect again. Request logs use `command_requested`, while results without a pending command use `command_result_unmatched`, including duplicate acknowledgements.
 
+Version 0.2.2 rotates the client identity after a place change. Reconnecting uses a new owner rather than consuming the old queue. A pending old command may temporarily block the new registration until its deadline. Use plugin 0.2.2 or later for this protection.
+
 ## Command envelope
 
 ```json

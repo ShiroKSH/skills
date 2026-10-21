@@ -113,7 +113,7 @@ local function createSpecInstance(instanceSpec, parent, createdPaths)
 	local ok, err = pcall(InstanceSerializer.writeProperties, instance, properties)
 	if not ok then
 		instance:Destroy()
-		error(err)
+		error(err, 0)
 	end
 	instance.Parent = parent
 	table.insert(createdPaths, InstanceSerializer.pathOf(instance))
@@ -1153,14 +1153,13 @@ function SceneApplier.apply(sceneSpec, dryRun)
 	zonesFolder.Name = "Zones"
 	zonesFolder.Parent = mapRoot
 	table.insert(createdPaths, InstanceSerializer.pathOf(zonesFolder))
-	local groundingInfo = groundSceneSpec(sceneSpec)
-
-	for _, zone in ipairs(sceneSpec.zones or {}) do
-		createZone(zone, zonesFolder, createdPaths)
-	end
-
 	local createdInstances = {}
+	local groundingInfo
 	local instancesOk, instancesError = pcall(function()
+		groundingInfo = groundSceneSpec(sceneSpec)
+		for _, zone in ipairs(sceneSpec.zones or {}) do
+			createZone(zone, zonesFolder, createdPaths)
+		end
 		local pendingInstances = sceneSpec.instances or {}
 		while #pendingInstances > 0 do
 			local unresolved = {}
@@ -1183,10 +1182,12 @@ function SceneApplier.apply(sceneSpec, dryRun)
 	end)
 	if not instancesOk then
 		for _, instance in ipairs(createdInstances) do
-			instance:Destroy()
+			if instance.Parent then
+				instance:Destroy()
+			end
 		end
 		mapRoot:Destroy()
-		error(instancesError)
+		error(instancesError, 0)
 	end
 	applyLighting(sceneSpec.lighting)
 

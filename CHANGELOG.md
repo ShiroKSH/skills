@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.2.2 - Unreleased
+## 0.2.2 - 2026-10-21
+
+- Rotate the Studio client identity after a place change so reconnecting cannot consume the previous place's queued edits.
+- Clean up draft roots when grounding or zone creation fails, and preserve original error locations.
+- Make the long-command ownership regression independent of a short wall-clock timeout and verify queues remain with the original client.
 
 ## 0.2.1 - 2026-10-21
 

@@ -67,6 +67,7 @@ function HttpTransport:isCurrent(session)
 	end
 	if game ~= session.dataModel or game.PlaceId ~= session.placeId then
 		self.session = nil
+		self.clientId = HttpService:GenerateGUID(false)
 		self.ui:setStatus("Place changed")
 		self.ui:log("Place changed. Connect again before editing")
 		return false
@@ -97,7 +98,7 @@ end
 
 function HttpTransport:register(session)
 	return self:request(session, "/plugin/register", {
-		pluginVersion = "0.2.1",
+		pluginVersion = "0.2.2",
 		placeName = game.Name,
 		placeId = game.PlaceId,
 		status = "Connected",

@@ -235,6 +235,7 @@ end)
 
 test("place changes discard commands returned by an in-flight poll", function()
 	local f, transport, ui, router = transportFixture()
+	local originalClientId = transport.clientId
 	requestHandler = function(options)
 		if string.find(options.Url, "/plugin/poll", 1, true) then
 			f.game.PlaceId = 123
@@ -244,6 +245,33 @@ test("place changes discard commands returned by an in-flight poll", function()
 	end
 	transport:start({ host = "127.0.0.1", port = 3765, token = token })
 	assert(router.calls == 0 and transport.session == nil and ui.status == "Place changed")
+	assert(transport.clientId ~= originalClientId)
+	local registeredClientId
+	requestHandler = function(options)
+		if string.find(options.Url, "/plugin/register", 1, true) then
+			registeredClientId = serde.decode("json", options.Body).clientId
+		else
+			transport:stop()
+		end
+		return success()
+	end
+	transport:start({ host = "127.0.0.1", port = 3765, token = token })
+	assert(registeredClientId ~= originalClientId and registeredClientId == transport.clientId)
+end)
+
+test("grounding and zone failures leave no partial draft", function()
+	for _, failure in ipairs({ "grounding", "zone" }) do
+		local f = fixture()
+		local spec = scene("BadInput", {})
+		if failure == "grounding" then
+			spec.instances = { { className = "Part", name = "BadFrame", properties = { CFrame = { type = "Unsupported", value = {} } } } }
+		else
+			spec.zones = { { name = "BadZone", kind = "spawn", position = { type = "Unsupported", value = {} }, size = { type = "Vector3", value = { 4, 1, 4 } } } }
+		end
+		local ok = pcall(f.load("SceneApplier").apply, spec, false)
+		assert(not ok)
+		assert(#f.game:GetService("Workspace").MapDrafts:GetChildren() == 0)
+	end
 end)
 
 test("expired commands never reach the router", function()

@@ -206,7 +206,7 @@ export class StudioBridge {
         status: String(body.status ?? "Connected")
       };
       await this.logger.log("plugin_registered", { plugin: this.plugin });
-      this.sendJson(response, 200, { ok: true, serverVersion: "0.2.1" });
+      this.sendJson(response, 200, { ok: true, serverVersion: "0.2.2" });
       return;
     }
 

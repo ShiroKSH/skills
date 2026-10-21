@@ -363,7 +363,8 @@ export class StudioBridge {
     }
     response.writeHead(statusCode, {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store"
+      "cache-control": "no-store",
+      ...(statusCode === 413 ? { connection: "close" } : {})
     });
     response.end(JSON.stringify(body));
   }

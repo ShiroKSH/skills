@@ -274,6 +274,32 @@ test("grounding and zone failures leave no partial draft", function()
 	end
 end)
 
+test("a place changed while disconnected gets a new identity on reconnect", function()
+	local f, transport, _, router = transportFixture()
+	requestHandler = function(options)
+		if string.find(options.Url, "/plugin/poll", 1, true) then coroutine.yield() end
+		return success()
+	end
+	transport:start({ host = "127.0.0.1", port = 3765, token = token })
+	local previousClientId = transport.clientId
+	transport:stop()
+	f.game.PlaceId = 456
+	local registeredClientId
+	requestHandler = function(options)
+		if string.find(options.Url, "/plugin/register", 1, true) then
+			registeredClientId = serde.decode("json", options.Body).clientId
+		else
+			transport:stop()
+		end
+		return success()
+	end
+	transport:start({ host = "127.0.0.1", port = 3765, token = token })
+	assert(registeredClientId ~= previousClientId and registeredClientId == transport.clientId)
+	assert(transport.clientPlaceId == 456)
+	assert(coroutine.resume(f.threads[1]))
+	assert(router.calls == 0)
+end)
+
 test("expired commands never reach the router", function()
 	local _, transport, _, router = transportFixture()
 	local sent

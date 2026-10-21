@@ -20,8 +20,14 @@ function HttpTransport.new(plugin, router, ui)
 	self.plugin = plugin
 	self.router = router
 	self.ui = ui
-	self.clientId = HttpService:GenerateGUID(false)
+	self:resetClientIdentity()
 	return self
+end
+
+function HttpTransport:resetClientIdentity()
+	self.clientId = HttpService:GenerateGUID(false)
+	self.clientDataModel = game
+	self.clientPlaceId = game.PlaceId
 end
 
 function HttpTransport:start(options)
@@ -47,6 +53,9 @@ function HttpTransport:start(options)
 		return false
 	end
 	local hostForUrl = host == "::1" and "[::1]" or host
+	if self.clientDataModel ~= game or self.clientPlaceId ~= game.PlaceId then
+		self:resetClientIdentity()
+	end
 	local session = { baseUrl = ("http://%s:%d"):format(hostForUrl, port), token = token, dataModel = game, placeId = game.PlaceId }
 	self.session = session
 	self.ui:setStatus("Connecting")
@@ -67,7 +76,7 @@ function HttpTransport:isCurrent(session)
 	end
 	if game ~= session.dataModel or game.PlaceId ~= session.placeId then
 		self.session = nil
-		self.clientId = HttpService:GenerateGUID(false)
+		self:resetClientIdentity()
 		self.ui:setStatus("Place changed")
 		self.ui:log("Place changed. Connect again before editing")
 		return false

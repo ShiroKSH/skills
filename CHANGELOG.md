@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.2.4 - Unreleased
+
 ## 0.2.3 - 2026-10-21
 
 - Export managed map roots as private native Roblox models with size limits, unique filenames, and binary log redaction.

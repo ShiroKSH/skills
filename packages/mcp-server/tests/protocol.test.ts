@@ -10,11 +10,12 @@ describe("Studio HTTP bridge", () => {
   let baseUrl: string;
 
   async function post(path: string, fields: Record<string, unknown> = {}) {
-    return fetch(`${baseUrl}/plugin/${path}`, {
+    const response = await fetch(`${baseUrl}/plugin/${path}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token, clientId: "studio-a", ...fields })
     });
+    return new Response(await response.text(), { status: response.status, headers: response.headers });
   }
 
   beforeEach(async () => {
@@ -168,5 +169,5 @@ describe("Studio HTTP bridge", () => {
     expect((await post("result", { commandId: command.id, ok: true, result: { data } })).status).toBe(200);
     await expect(result).resolves.toEqual({ data });
     expect((await post("result", { data: "a".repeat(16 * 1024 * 1024) })).status).toBe(413);
-  });
+  }, 20_000);
 });

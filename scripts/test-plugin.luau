@@ -266,12 +266,29 @@ test("grounding and zone failures leave no partial draft", function()
 		if failure == "grounding" then
 			spec.instances = { { className = "Part", name = "BadFrame", properties = { CFrame = { type = "Unsupported", value = {} } } } }
 		else
+			spec.layout.grounding.mode = "none"
 			spec.zones = { { name = "BadZone", kind = "spawn", position = { type = "Unsupported", value = {} }, size = { type = "Vector3", value = { 4, 1, 4 } } } }
 		end
 		local ok = pcall(f.load("SceneApplier").apply, spec, false)
 		assert(not ok)
 		assert(#f.game:GetService("Workspace").MapDrafts:GetChildren() == 0)
 	end
+end)
+
+test("retrying the same spec after failed apply does not ground it twice", function()
+	local f = fixture()
+	local spec = scene("RetryGrounding", {
+		{ className = "Part", name = "Floor", properties = {
+			Size = { type = "Vector3", value = { 4, 2, 4 } },
+			CFrame = { type = "CFrame", value = { 9, -8, 4 } },
+		} },
+		{ className = "Part", name = "Blocked", parentPath = "$MAP_ROOT/Missing" },
+	})
+	assert(not pcall(f.load("SceneApplier").apply, spec, false))
+	table.remove(spec.instances, 2)
+	local result = f.load("SceneApplier").apply(spec, false)
+	local floor = f.load("InstanceSerializer").resolve(result.mapRootPath).Floor
+	assert(math.abs(floor.CFrame.Position.Y - 18.1) < 0.001)
 end)
 
 test("a place changed while disconnected gets a new identity on reconnect", function()

@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.2.3 - Unreleased
+
 ## 0.2.2 - 2026-10-21
 
 - Rotate the Studio client identity after a place change so reconnecting cannot consume the previous place's queued edits.

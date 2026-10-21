@@ -164,7 +164,7 @@ npm run test:example
 
 `check` runs the TypeScript build and HTTP/tool tests. `test:plugin` builds the `.rbxm`, compiles its Luau modules, and runs scene and transport regressions in Lune. It does not replace an in-Studio visual or playtest check.
 
-Pull requests receive automatic reviews from CodeRabbit, Qodo, and Sourcery. GitHub
+Pull requests receive automatic reviews from CodeRabbit and Sourcery. GitHub
 CodeQL scans JavaScript and TypeScript changes, while Dependabot opens grouped weekly
 dependency updates and immediate security-fix PRs. Automated suggestions still need
 to be verified against the tests and the Roblox Studio safety boundaries.

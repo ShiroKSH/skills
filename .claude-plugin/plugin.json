@@ -1,6 +1,6 @@
 {
   "name": "roblox-studio",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Inspect, build, repair, validate, and playtest Roblox Studio maps and Luau through a local MCP bridge.",
   "author": {
     "name": "ShiroKSH",

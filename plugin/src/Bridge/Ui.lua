@@ -58,7 +58,7 @@ function Ui.new(plugin, toolbarButton)
 	self.undoCallbacks = {}
 	local info = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 360, 460, 280, 320)
 	self.widget = plugin:CreateDockWidgetPluginGui("RobloxStudioBridge", info)
-	self.widget.Title = "Roblox Studio Bridge 0.2.0"
+	self.widget.Title = "Roblox Studio Bridge 0.2.1"
 
 	local root = Instance.new("Frame")
 	root.Name = "Root"

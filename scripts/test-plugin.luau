@@ -115,10 +115,30 @@ end)
 test("missing and cyclic parents fail explicitly", function()
 	local f = fixture()
 	local ok, err = pcall(f.load("SceneApplier").apply, scene("Cycle", {
+		{ className = "Part", name = "EarlierPart" },
 		{ className = "Folder", name = "A", parentPath = "$MAP_ROOT/B" },
 		{ className = "Folder", name = "B", parentPath = "$MAP_ROOT/A" },
 	}), false)
 	assert(not ok and string.find(tostring(err), "Missing or cyclic parent path", 1, true))
+	assert(#f.game:GetService("Workspace").MapDrafts:GetChildren() == 0)
+end)
+
+test("CFrame wins over conflicting Position in grounded and ungrounded scenes", function()
+	for _, mode in ipairs({ "manual", "none" }) do
+		local f = fixture()
+		local spec = scene("ConflictingPosition", {
+			{ className = "Part", name = "Floor", properties = {
+				Size = { type = "Vector3", value = { 4, 2, 4 } },
+				Position = { type = "Vector3", value = { -100, -100, -100 } },
+				CFrame = { type = "CFrame", value = { 9, -8, 4 } },
+			} },
+		})
+		spec.layout.grounding.mode = mode
+		local result = f.load("SceneApplier").apply(spec, false)
+		local floor = f.load("InstanceSerializer").resolve(result.mapRootPath).Floor
+		assert(math.abs(floor.CFrame.Position.X - 9) < 0.001)
+		assert(math.abs(floor.CFrame.Position.Y - (mode == "manual" and 18.1 or -8)) < 0.001)
+	end
 end)
 
 test("grounding CFrame parts preserves rotation and oriented bottom height", function()
@@ -201,16 +221,29 @@ test("result delivery retries without re-executing an edit", function()
 			results += 1
 			local body = serde.decode("json", options.Body)
 			assert(body.ok == true and body.result == false and body.error == nil)
-			if results == 1 then return { Success = false, StatusCode = 503, StatusMessage = "Unavailable" } end
+			if results <= 4 then return { Success = false, StatusCode = 503, StatusMessage = "Unavailable" } end
 		end
 		return success()
 	end
 	transport:start({ host = "localhost", port = 3765, token = token })
 	assert(router.calls == 1 and results == 1, tostring(router.calls) .. "/" .. tostring(results) .. " " .. table.concat(ui.logs, "; "))
-	assert(coroutine.resume(f.threads[1]))
-	assert(router.calls == 1 and results == 2)
+	for _ = 1, 4 do assert(coroutine.resume(f.threads[1])) end
+	assert(router.calls == 1 and results == 5)
 	transport:stop()
 	assert(coroutine.resume(f.threads[1]))
+end)
+
+test("place changes discard commands returned by an in-flight poll", function()
+	local f, transport, ui, router = transportFixture()
+	requestHandler = function(options)
+		if string.find(options.Url, "/plugin/poll", 1, true) then
+			f.game.PlaceId = 123
+			return success({ command = { id = "wrong-place", name = "studio_create_instance" } })
+		end
+		return success()
+	end
+	transport:start({ host = "127.0.0.1", port = 3765, token = token })
+	assert(router.calls == 0 and transport.session == nil and ui.status == "Place changed")
 end)
 
 test("expired commands never reach the router", function()

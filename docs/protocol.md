@@ -14,9 +14,11 @@ Default bind is `127.0.0.1:3765`. Non-loopback binds are refused.
 
 The pre-release GET polling route was removed so credentials never appear in request URLs. Plugin and server must be updated together.
 
-Version 0.2.0 requires the registered `clientId` on every plugin request. Older plugins must be updated with the server. A different Studio session receives HTTP 409 while the current owner is active. An owner becomes stale after 35 seconds without a poll or result, allowing a replacement session to register. Replacing an owner rejects its pending work instead of transferring edits to the new place.
+Version 0.2.0 and later require the registered `clientId` on every plugin request. Older plugins must be updated with the server. A different Studio session receives HTTP 409 while the current owner is active. An idle owner becomes stale after 35 seconds without a poll or result. Pending commands retain ownership until completion or their deadline, preventing a long edit from being transferred to another place.
 
 The plugin re-registers after connection failures, with a capped backoff. Authentication failures stop reconnecting until the user supplies the correct token. Disconnecting invalidates in-flight poll responses. Result delivery retries never execute the command again.
+
+Result delivery retries continue until acknowledgement, a permanent rejection, disconnect, or the command deadline. A detected place change stops the connection before the next command can execute. Inspect the place and connect again. Request logs use `command_requested`, while results without a pending command use `command_result_unmatched`, including duplicate acknowledgements.
 
 ## Command envelope
 
@@ -86,3 +88,5 @@ Expired commands are removed from the server queue and rejected by the plugin be
 For iterative visual repair, use `studio_patch_instances` for batched create/set/delete edits inside generated roots. Use `studio_focus_instance` or `studio_set_camera` to move the Studio viewport, then `studio_visual_probe` to raycast a viewport grid and report visible hit parts before calling a build ready.
 
 `Workspace/AI_Generated` is accepted only for migrating older maps.
+
+When an instance provides both `CFrame` and `Position`, `CFrame` takes precedence for placement and grounding.

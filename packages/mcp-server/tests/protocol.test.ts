@@ -103,21 +103,37 @@ describe("Studio HTTP bridge", () => {
     expect(bridge.getStatus().connected).toBe(false);
   });
 
-  it("rejects old work when a stale Studio owner is replaced", async () => {
+  it("keeps long-running work with its owner until its deadline", async () => {
     await post("register");
-    const result = bridge.sendCommand("studio_create_instance", {});
-    const rejection = expect(result).rejects.toThrow("Studio session changed");
-    await vi.waitFor(() => expect(logger.log).toHaveBeenCalledWith("command_queued", expect.anything()));
+    const result = bridge.sendCommand("studio_create_instance", {}, 100);
+    const rejection = expect(result).rejects.toThrow("Timed out");
+    await (await post("poll")).json();
     const now = Date.now();
     vi.spyOn(Date, "now").mockReturnValue(now + 36_000);
-    expect((await post("register", { clientId: "studio-b" })).status).toBe(200);
+    expect(bridge.getStatus().connected).toBe(true);
+    expect((await post("register", { clientId: "studio-b" })).status).toBe(409);
     await rejection;
+    expect((await post("register", { clientId: "studio-b" })).status).toBe(200);
     expect((await post("result", { commandId: "old", ok: true })).status).toBe(409);
     const fresh = bridge.sendCommand("studio_ping", {});
     const { command } = await (await post("poll", { clientId: "studio-b" })).json();
     expect(command.name).toBe("studio_ping");
     await post("result", { clientId: "studio-b", commandId: command.id, ok: true, result: "new place" });
     await expect(fresh).resolves.toBe("new place");
+  });
+
+  it("does not queue edits whose deadline passes during logging", async () => {
+    await post("register");
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    vi.mocked(logger.log).mockImplementationOnce(async () => { clock.mockReturnValue(now + 100); });
+    await expect(bridge.sendCommand("studio_create_instance", {}, 50)).rejects.toThrow("Timed out before queuing");
+    clock.mockRestore();
+    const result = bridge.sendCommand("studio_ping", {});
+    const { command } = await (await post("poll")).json();
+    expect(command.name).toBe("studio_ping");
+    await post("result", { commandId: command.id, ok: true, result: "not expired" });
+    await expect(result).resolves.toBe("not expired");
   });
 
   it("settles a completed command even when result logging fails", async () => {

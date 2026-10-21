@@ -1,6 +1,6 @@
 {
   "name": "roblox-studio-bridge",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Roblox Studio skill and local MCP bridge for building maps and Luau with coding agents.",
   "license": "MIT",

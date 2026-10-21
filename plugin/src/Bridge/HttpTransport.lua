@@ -47,7 +47,7 @@ function HttpTransport:start(options)
 		return false
 	end
 	local hostForUrl = host == "::1" and "[::1]" or host
-	local session = { baseUrl = ("http://%s:%d"):format(hostForUrl, port), token = token }
+	local session = { baseUrl = ("http://%s:%d"):format(hostForUrl, port), token = token, dataModel = game, placeId = game.PlaceId }
 	self.session = session
 	self.ui:setStatus("Connecting")
 	task.spawn(function()
@@ -59,6 +59,19 @@ end
 function HttpTransport:stop()
 	self.session = nil
 	self.ui:setStatus("Disconnected")
+end
+
+function HttpTransport:isCurrent(session)
+	if self.session ~= session then
+		return false
+	end
+	if game ~= session.dataModel or game.PlaceId ~= session.placeId then
+		self.session = nil
+		self.ui:setStatus("Place changed")
+		self.ui:log("Place changed. Connect again before editing")
+		return false
+	end
+	return true
 end
 
 function HttpTransport:request(session, path, body)
@@ -84,7 +97,7 @@ end
 
 function HttpTransport:register(session)
 	return self:request(session, "/plugin/register", {
-		pluginVersion = "0.2.0",
+		pluginVersion = "0.2.1",
 		placeName = game.Name,
 		placeId = game.PlaceId,
 		status = "Connected",
@@ -114,16 +127,21 @@ function HttpTransport:sendOutput(lines)
 end
 
 function HttpTransport:execute(session, command)
+	if not self:isCurrent(session) then
+		return
+	end
+	local resultDeadline = DateTime.now().UnixTimestampMillis + 30_000
 	local commandOk, result = pcall(function()
 		if command.expiresAt then
 			local expiry = DateTime.fromIsoDate(command.expiresAt)
 			if not expiry or DateTime.now().UnixTimestampMillis >= expiry.UnixTimestampMillis then
 				error("Command expired before execution")
 			end
+			resultDeadline = expiry.UnixTimestampMillis
 		end
 		return self.router:handle(command.name, command.args)
 	end)
-	if self.session ~= session then
+	if not self:isCurrent(session) then
 		return
 	end
 	self.ui:log((commandOk and "Completed: " or "Failed: ") .. tostring(command.name))
@@ -131,28 +149,28 @@ function HttpTransport:execute(session, command)
 	if not commandOk then
 		errorMessage = messageOf(result)
 	end
-	for attempt = 1, 3 do
+	local attempt = 0
+	while self:isCurrent(session) do
 		local sent, err = pcall(function()
 			self:sendResult(session, command.id, commandOk, result, errorMessage)
 		end)
-		if sent or self.session ~= session then
+		if sent or not self:isCurrent(session) then
 			return
 		end
-		if attempt == 3 then
-			self.ui:log("Result delivery failed; command was not replayed. " .. messageOf(err))
-		else
-			task.wait(attempt * 0.5)
-			if self.session ~= session then
-				return
-			end
+		local status = type(err) == "table" and err.statusCode
+		if status == 401 or status == 403 or status == 409 or DateTime.now().UnixTimestampMillis >= resultDeadline then
+			self.ui:log("Result delivery stopped; command was not replayed. " .. messageOf(err))
+			return
 		end
+		attempt += 1
+		task.wait(math.min(0.5 * 2 ^ math.min(attempt - 1, 3), 4))
 	end
 end
 
 function HttpTransport:run(session)
 	local registered = false
 	local failures = 0
-	while self.session == session do
+	while self:isCurrent(session) do
 		local ok, result = pcall(function()
 			if not registered then
 				self:register(session)
@@ -162,12 +180,12 @@ function HttpTransport:run(session)
 					self.ui:log("Connected to MCP server")
 				end
 			end
-			if self.session ~= session then
+			if not self:isCurrent(session) then
 				return {}
 			end
 			return self:poll(session)
 		end)
-		if self.session ~= session then
+		if not self:isCurrent(session) then
 			return
 		end
 		if ok then

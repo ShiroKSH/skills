@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.2.1 - Unreleased
+## 0.2.1 - 2026-10-21
+
+- Keep session ownership while a command is pending and use its original deadline when logging delays dispatch.
+- Stop before executing a polled command when the Studio place changes.
+- Retry completed result delivery until acknowledgement, rejection, disconnect, or the command deadline without replaying edits.
+- Give CFrame precedence over Position consistently during SceneSpec grounding and creation.
+- Remove newly created draft instances when nested parent resolution fails, including without an Undo recording.
+- Distinguish command requests and unmatched result acknowledgements in logs instead of reporting unqueued edits or false orphan results.
 
 ## 0.2.0 - 2026-10-21
 

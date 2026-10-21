@@ -107,7 +107,8 @@ export class StudioBridge {
   }
 
   getStatus(): BridgeStatus {
-    const connected = !this.stopping && !!this.plugin && Date.now() - this.lastSeenAt < 35_000;
+    const connected = !this.stopping && !!this.plugin
+      && (Date.now() - this.lastSeenAt < 35_000 || this.pending.size > 0);
     const address = this.server?.address();
     return {
       server: {
@@ -138,9 +139,13 @@ export class StudioBridge {
     };
     const clientId = this.plugin!.clientId;
 
-    await this.logger.log("command_queued", { commandId: command.id, name, args });
+    await this.logger.log("command_requested", { commandId: command.id, name, args });
     if (!this.getStatus().connected || this.plugin?.clientId !== clientId) {
       throw new Error("Studio connection changed before the command was queued");
+    }
+    const remainingMs = Date.parse(command.expiresAt) - Date.now();
+    if (remainingMs <= 0) {
+      throw new Error(`Timed out before queuing Studio command ${name}`);
     }
 
     const resultPromise = new Promise<unknown>((resolve, reject) => {
@@ -149,7 +154,7 @@ export class StudioBridge {
         const index = this.queue.findIndex((queued) => queued.id === command.id);
         if (index >= 0) this.queue.splice(index, 1);
         reject(new Error(`Timed out waiting for Studio result for ${name}`));
-      }, timeoutMs);
+      }, remainingMs);
       this.pending.set(command.id, { resolve, reject, timer, clientId });
     });
 
@@ -201,7 +206,7 @@ export class StudioBridge {
         status: String(body.status ?? "Connected")
       };
       await this.logger.log("plugin_registered", { plugin: this.plugin });
-      this.sendJson(response, 200, { ok: true, serverVersion: "0.2.0" });
+      this.sendJson(response, 200, { ok: true, serverVersion: "0.2.1" });
       return;
     }
 
@@ -284,7 +289,7 @@ export class StudioBridge {
     const commandId = String(body.commandId ?? "");
     const pending = this.pending.get(commandId);
     if (!pending) {
-      await this.logger.log("command_result_orphaned", { commandId });
+      await this.logger.log("command_result_unmatched", { commandId });
       return;
     }
     if (pending.clientId !== this.plugin?.clientId) {

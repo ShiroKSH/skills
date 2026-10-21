@@ -106,7 +106,11 @@ local function createSpecInstance(instanceSpec, parent, createdPaths)
 	Safety.assertAllowedClass(instanceSpec.className)
 	local instance = Instance.new(instanceSpec.className)
 	instance.Name = Safety.sanitizeName(instanceSpec.name)
-	local ok, err = pcall(InstanceSerializer.writeProperties, instance, instanceSpec.properties or {})
+	local properties = table.clone(instanceSpec.properties or {})
+	if properties.CFrame then
+		properties.Position = nil
+	end
+	local ok, err = pcall(InstanceSerializer.writeProperties, instance, properties)
 	if not ok then
 		instance:Destroy()
 		error(err)
@@ -930,7 +934,7 @@ local function instanceFrame(properties)
 	local frame = properties.CFrame and InstanceSerializer.deserialize(properties.CFrame)
 	local position = vectorOrNil(properties.Position)
 	if typeof(frame) == "CFrame" then
-		return position and frame.Rotation + position or frame
+		return frame
 	end
 	return position and CFrame.new(position) or nil
 end
@@ -1151,31 +1155,40 @@ function SceneApplier.apply(sceneSpec, dryRun)
 	table.insert(createdPaths, InstanceSerializer.pathOf(zonesFolder))
 	local groundingInfo = groundSceneSpec(sceneSpec)
 
-	applyLighting(sceneSpec.lighting)
-
 	for _, zone in ipairs(sceneSpec.zones or {}) do
 		createZone(zone, zonesFolder, createdPaths)
 	end
 
-	local pendingInstances = sceneSpec.instances or {}
-	while #pendingInstances > 0 do
-		local unresolved = {}
-		for _, instanceSpec in ipairs(pendingInstances) do
-			local parent = resolveParent(instanceSpec.parentPath, mapRoot)
-			if parent then
-				if not sceneSpec.allowExistingEdit then
-					Safety.assertGeneratedPath(InstanceSerializer.pathOf(parent))
+	local createdInstances = {}
+	local instancesOk, instancesError = pcall(function()
+		local pendingInstances = sceneSpec.instances or {}
+		while #pendingInstances > 0 do
+			local unresolved = {}
+			for _, instanceSpec in ipairs(pendingInstances) do
+				local parent = resolveParent(instanceSpec.parentPath, mapRoot)
+				if parent then
+					if not sceneSpec.allowExistingEdit then
+						Safety.assertGeneratedPath(InstanceSerializer.pathOf(parent))
+					end
+					table.insert(createdInstances, createSpecInstance(instanceSpec, parent, createdPaths))
+				else
+					table.insert(unresolved, instanceSpec)
 				end
-				createSpecInstance(instanceSpec, parent, createdPaths)
-			else
-				table.insert(unresolved, instanceSpec)
 			end
+			if #unresolved == #pendingInstances then
+				error(("Missing or cyclic parent path: %s"):format(tostring(unresolved[1].parentPath)))
+			end
+			pendingInstances = unresolved
 		end
-		if #unresolved == #pendingInstances then
-			error(("Missing or cyclic parent path: %s"):format(tostring(unresolved[1].parentPath)))
+	end)
+	if not instancesOk then
+		for _, instance in ipairs(createdInstances) do
+			instance:Destroy()
 		end
-		pendingInstances = unresolved
+		mapRoot:Destroy()
+		error(instancesError)
 	end
+	applyLighting(sceneSpec.lighting)
 
 	local palette = paletteFor(sceneSpec)
 	local anchors = collectAnchors(sceneSpec)

@@ -84,6 +84,8 @@ Expired commands are removed from the server queue and rejected by the plugin be
 
 Files use unique names and are never overwritten. Failed writes remove only the newly created artifact. POSIX artifact directories are restricted to mode `0700` and files to `0600`; Windows uses the enclosing directory's ACL. Binary results are capped at 8 MiB, decoded and signature-checked before saving. Only `/plugin/result` permits a 16 MiB JSON envelope for base64 transport. Other request bodies retain their 1 MiB limit. Encoded data is redacted from logs. Captures preserve viewport proportions when either output dimension is omitted.
 
+Symbolic artifact directories are rejected before permission changes or file creation. If cleanup fails after a partial write, the error identifies the owned path and includes both failures. Inferred capture dimensions must also fit 1-4096 pixels. Unsupported combinations fail rather than silently stretching or changing a requested dimension.
+
 ## Automated Tests
 
 `studio_run_test` takes `modulePath`, `confirmToken="RUN_STUDIO_TEST"`, `mode="run"` or `"play"`, optional JSON `args`, and `timeoutSeconds` from 1 to 120. The ModuleScript must be inside a managed root and return a function accepting `args`. Its return value must be JSON-serializable.

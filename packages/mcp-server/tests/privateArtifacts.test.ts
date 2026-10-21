@@ -6,7 +6,7 @@ import { writePrivateArtifact } from "../src/tools/privateArtifacts.js";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
-  return { ...actual, open: vi.fn(actual.open) };
+  return { ...actual, open: vi.fn(actual.open), unlink: vi.fn(actual.unlink) };
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -60,6 +60,50 @@ it("removes an owned partial file after a write error", async () => {
   } finally {
     vi.restoreAllMocks();
     await fs.unlink(path).catch(() => {});
+    await fs.rmdir(directory);
+  }
+});
+
+it("rejects symbolic artifact directories without changing their targets", async () => {
+  const root = await fs.mkdtemp(join(tmpdir(), "bridge-link-"));
+  const target = join(root, "target");
+  const directory = join(root, "artifacts");
+  await fs.mkdir(target, { mode: 0o755 });
+  await fs.symlink(target, directory, process.platform === "win32" ? "junction" : "dir");
+  const originalMode = (await fs.stat(target)).mode;
+  try {
+    await expect(writePrivateArtifact(directory, "model.rbxm", Buffer.from("private"))).rejects.toThrow("symbolic link");
+    expect(await fs.readdir(target)).toEqual([]);
+    expect((await fs.stat(target)).mode).toBe(originalMode);
+  } finally {
+    await fs.unlink(directory);
+    await fs.rmdir(target);
+    await fs.rmdir(root);
+  }
+});
+
+it("reports an owned partial path when cleanup also fails", async () => {
+  const directory = await fs.mkdtemp(join(tmpdir(), "bridge-cleanup-"));
+  const path = join(directory, "model.rbxm");
+  const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+  try {
+    vi.mocked(fs.open).mockImplementationOnce(async (...args) => {
+      const handle = await actual.open(...args);
+      const write = handle.writeFile.bind(handle);
+      vi.spyOn(handle, "writeFile").mockImplementationOnce(async () => {
+        await write(Buffer.from("partial"));
+        throw new Error("Expected write failure");
+      });
+      return handle;
+    });
+    vi.mocked(fs.unlink).mockRejectedValueOnce(new Error("Expected cleanup failure"));
+    await expect(writePrivateArtifact(directory, "model.rbxm", Buffer.from("complete"))).rejects.toMatchObject({
+      name: "AggregateError", message: expect.stringContaining(path), errors: [expect.any(Error), expect.any(Error)]
+    });
+    expect(await fs.readFile(path, "utf8")).toBe("partial");
+  } finally {
+    vi.restoreAllMocks();
+    await actual.unlink(path).catch(() => {});
     await fs.rmdir(directory);
   }
 });

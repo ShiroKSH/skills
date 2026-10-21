@@ -156,4 +156,17 @@ describe("Studio HTTP bridge", () => {
     expect((await post("result", { commandId: command.id, ok: true, result: "done" })).status).toBe(500);
     await expect(result).resolves.toBe("done");
   });
+
+  it("allows bounded binary results without relaxing normal request limits or authentication", async () => {
+    const data = "a".repeat(1_100_000);
+    expect((await post("register", { data })).status).toBe(413);
+    await post("register");
+    const result = bridge.sendCommand("studio_export_model", {});
+    const { command } = await (await post("poll")).json();
+    expect((await post("result", { token: "wrong", commandId: command.id, ok: true, result: { data } })).status).toBe(401);
+    expect((await post("result", { clientId: "studio-b", commandId: command.id, ok: true, result: { data } })).status).toBe(409);
+    expect((await post("result", { commandId: command.id, ok: true, result: { data } })).status).toBe(200);
+    await expect(result).resolves.toEqual({ data });
+    expect((await post("result", { data: "a".repeat(16 * 1024 * 1024) })).status).toBe(413);
+  });
 });

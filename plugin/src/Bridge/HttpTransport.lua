@@ -107,7 +107,7 @@ end
 
 function HttpTransport:register(session)
 	return self:request(session, "/plugin/register", {
-		pluginVersion = "0.2.2",
+		pluginVersion = "0.2.3",
 		placeName = game.Name,
 		placeId = game.PlaceId,
 		status = "Connected",

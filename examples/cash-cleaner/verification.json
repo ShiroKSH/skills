@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-10-21",
+  "studioVersion": "0.743.0.7431133",
+  "transport": "stdio MCP to authenticated local HTTP to Studio",
+  "gameplay": { "passed": 8, "activePrompts": 13, "stationCountdowns": 4 },
+  "testLifecycle": {
+    "success": { "ok": true, "runnerCleanedUp": true },
+    "thrownError": { "ok": false, "expectedErrorReceived": true, "runnerCleanedUp": true },
+    "yieldingTimeout": { "ok": false, "timedOut": true, "elapsedMs": 1762, "runnerCleanedUp": true },
+    "cpuBoundTimeout": { "ok": false, "timedOut": true, "elapsedMs": 13463, "runnerCleanedUp": true }
+  },
+  "bridgeRespondedAfterEveryTest": true,
+  "playMode": { "ok": true, "playerSpawnVerified": true, "populatedHudLabels": 3 },
+  "viewportCapture": { "captured": false, "nativePermissionAvailable": false, "permissionPromptOpened": false }
+}

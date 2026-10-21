@@ -3,6 +3,7 @@ local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
 local serde = require("@lune/serde")
 local datetime = require("@lune/datetime")
+require("./test-viewport-capture")
 
 local requestHandler
 local guid = 0

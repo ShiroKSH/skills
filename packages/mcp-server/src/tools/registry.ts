@@ -8,6 +8,8 @@ import { parseSceneSpec } from "../schema/sceneSpec.js";
 import { planSceneSpec } from "./scenePlan.js";
 import { validateLuauForDangerousExecution } from "../security/luauSafety.js";
 import { writeRojoArtifacts } from "./rojoArtifacts.js";
+import { registerModelExportTool } from "./modelExport.js";
+import { registerViewportCaptureTool } from "./viewportCapture.js";
 
 function jsonResult(data: unknown) {
   return {
@@ -57,6 +59,18 @@ function requireDeleteToken(input: { confirmToken?: string; requireConfirmToken?
 }
 
 export function registerBridgeTools(server: McpServer, bridge: StudioBridge, config: BridgeConfig): void {
+  registerModelExportTool(server, bridge);
+  registerViewportCaptureTool(server, bridge);
+  server.registerTool("studio_run_test", {
+    description: "Execute trusted project test code in Studio Run or Play mode with timeout cleanup. Requires RUN_STUDIO_TEST confirmation. Not a sandbox. The managed ModuleScript must return a function.",
+    inputSchema: {
+      modulePath: z.string().min(1),
+      confirmToken: z.literal("RUN_STUDIO_TEST"),
+      mode: z.enum(["run", "play"]).default("run"),
+      args: z.record(z.unknown()).default({}),
+      timeoutSeconds: z.number().int().min(1).max(120).default(30)
+    }
+  }, async (args) => dispatch(bridge, "studio_run_test", args, (args.timeoutSeconds + 20) * 1000));
   server.registerTool(
     "studio_ping",
     {

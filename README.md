@@ -81,7 +81,7 @@ Manual fallback: run `npm run build:plugin`, then copy the `.rbxm` file into `%L
 
 The token is generated locally, is never a Roblox credential, is not persisted by the plugin, and is cleared from the panel after connection. Set `ROBLOX_STUDIO_BRIDGE_TOKEN` only when a stable local token is needed.
 
-The panel reconnects after a server restart while the token stays the same. If the server generates a new token, select `Connect` with that token. Only one Studio session can own a bridge connection. Update both the server and the plugin to 0.2.0 together.
+The panel reconnects after a server restart while the token stays the same. If the server generates a new token, select `Connect` with that token. Only one Studio session can own a bridge connection. Update the server and the plugin together.
 
 ## What the bridge exposes
 
@@ -91,7 +91,8 @@ The panel reconnects after a server restart while the token stays the same. If t
 - Batched create, set, ensure, and delete operations inside managed roots.
 - Camera control and viewport raycast probes for visual checks.
 - Doors, buttons, elevators, teleporters, checkpoints, and scoped runtime scripts.
-- Geometry validation, map-readiness contracts, playtest requests, and Studio output.
+- Geometry validation, map-readiness contracts, trusted ModuleScript tests in actual Run or Play mode, and Studio output.
+- Private binary model backups and native viewport-only PNG captures.
 - Rojo projects under `generated/rojo/<mapName>` when `codegen.target` is `rojo` or `both`.
 
 The full MCP tool list and protocol are documented in [docs/protocol.md](docs/protocol.md). SceneSpec fields are defined in [docs/scene-spec.schema.json](docs/scene-spec.schema.json).
@@ -108,6 +109,14 @@ The full MCP tool list and protocol are documented in [docs/protocol.md](docs/pr
 8. Inspect several camera angles, playtest interactions, read Studio output, and patch concrete failures.
 
 Start with [examples/simple-obby.scene.json](examples/simple-obby.scene.json) for a minimal spec or [examples/vertical-bazaar.scene.json](examples/vertical-bazaar.scene.json) for a layered map. Every apply writes a filesystem manifest under `logs/manifests/` and a `SceneManifest` value under the generated map root.
+
+## Gameplay Example
+
+[Cash Cleaner](examples/cash-cleaner/README.md) contains the server runtime, production-state logic, and executable tests from a real tycoon map. The example fixes abandoned ownership, lost in-process inventory, and duplicate completion payouts, then adds live station countdowns and next-step feedback. Eight gameplay checks passed in Studio through MCP with 13 active prompts and four station displays.
+
+Use `studio_export_model` to save a managed build root under `generated/exports` before a repair. Use `studio_run_test` with a reviewed test ModuleScript and `confirmToken="RUN_STUDIO_TEST"` to exercise behavior. Tests execute project code, not sandboxed code.
+
+For images, select `Allow viewport capture` in the plugin panel once, then call `studio_capture_viewport`. Images stay under `generated/captures`. The tool never opens permission dialogs or captures desktop panels. Check in-world text before publishing a frame.
 
 ## Build evolution
 
@@ -150,6 +159,7 @@ rokit install
 npm run check
 npm run validate:skill
 npm run test:plugin
+npm run test:example
 ```
 
 `check` runs the TypeScript build and HTTP/tool tests. `test:plugin` builds the `.rbxm`, compiles its Luau modules, and runs scene and transport regressions in Lune. It does not replace an in-Studio visual or playtest check.

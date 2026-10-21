@@ -17,7 +17,9 @@ Read this file when choosing tools, repairing a map, or diagnosing a failed buil
 | Validate geometry | `map_validate` | Use returned map root and strict geometry. |
 | Validate final contract | `map_readiness_check` | Run after `map_validate`; house profile is specialized. |
 | Inspect runtime output | `studio_read_output` | Read after apply and playtest. |
-| Exercise behavior | `studio_start_playtest`, `studio_stop_playtest` | Follow manual fallback when returned. |
+| Keep a private model backup | `studio_export_model` | Managed root, 10,000 instances and 8 MiB maximum. |
+| Capture visual evidence | `studio_capture_viewport` | Native permission first, viewport only, review privacy before sharing. |
+| Exercise behavior | `studio_run_test` | Reviewed ModuleScript, `RUN_STUDIO_TEST` confirmation, working copy without persistent writes. Not a sandbox. |
 
 ## Repair Sequence
 
@@ -36,4 +38,6 @@ Read this file when choosing tools, repairing a map, or diagnosing a failed buil
 - Apply timeout: inspect `studio_read_output`, reconnect, and inspect the tree before retrying to avoid duplicates.
 - Validation error: patch and re-run. Do not downgrade an error to a prose caveat.
 - Manual playtest fallback: request the Studio Play or Stop action, then continue verification.
+- Screenshot unavailable during a background-only task means no screenshot. Do not prompt or use desktop capture.
+- Test timeout means inspect the result and run `studio_ping` before retrying. If Studio is frozen, stop and report the required restart.
 - Unknown existing content: do not delete, rename, or reparent it without explicit user approval.

@@ -20,7 +20,10 @@
 - New SceneSpecs target `Workspace/MapDrafts`.
 - `Workspace/AI_Generated` remains accepted only for migrating older maps.
 - `studio_delete_instances` requires `confirmToken`; use it only for generated build roots.
-- All commands are logged to `logs/commands.jsonl` with tokens, source, and code redacted.
+- All commands are logged to `logs/commands.jsonl` with tokens, source, code, and binary data redacted.
 - `map_apply_scene_spec dryRun=true` runs locally in the MCP server and returns object count, touched services, and risks.
 - Apply writes a filesystem manifest under `logs/manifests/.../map_manifest.json`; the plugin also creates `SceneManifest` under the map root.
 - Studio changes are wrapped in `ChangeHistoryService` recording when available, with `SetWaypoint` fallback.
+- Model backups and viewport captures stay in ignored local `generated` directories. They are not automatically shared or uploaded.
+- Viewport capture requires native permission granted by a user-clicked button. Agents cannot trigger the permission dialog through the capture tool. Desktop and Studio panels are excluded, but in-world text still needs a privacy review before sharing.
+- `studio_run_test` requires `RUN_STUDIO_TEST` confirmation and a reviewed managed ModuleScript. This explicitly executes trusted project code and is not a sandbox. Test only a working copy with persistent/external writes disabled or mocked. A timeout stops the simulation when Studio remains responsive, not a frozen operating-system process.

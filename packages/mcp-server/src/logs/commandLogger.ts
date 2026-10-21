@@ -15,6 +15,7 @@ const REDACTED_KEYS = new Set([
   "code",
   "confirmtoken",
   "cookie",
+  "data",
   "password",
   "secret",
   "source",

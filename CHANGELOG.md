@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.2.3 - Unreleased
+## 0.2.3 - 2026-10-21
+
+- Export managed map roots as private native Roblox models with size limits, unique filenames, and binary log redaction.
+- Run reviewed ModuleScript tests in native Studio Run or Play mode with explicit confirmation, timeout cleanup, and an edit-side stop watchdog.
+- Capture viewport-only PNGs after user-granted native permission without automatic prompts or desktop capture.
+- Add the Cash Cleaner gameplay example with ownership release, cancelled-job refunds, capacity conservation, station countdowns, and eight executable regression checks.
 
 ## 0.2.2 - 2026-10-21
 

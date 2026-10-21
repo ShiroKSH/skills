@@ -206,7 +206,7 @@ export class StudioBridge {
         status: String(body.status ?? "Connected")
       };
       await this.logger.log("plugin_registered", { plugin: this.plugin });
-      this.sendJson(response, 200, { ok: true, serverVersion: "0.2.2" });
+      this.sendJson(response, 200, { ok: true, serverVersion: "0.2.3" });
       return;
     }
 
@@ -220,7 +220,7 @@ export class StudioBridge {
     }
 
     if (request.method === "POST" && url.pathname === "/plugin/result") {
-      const body = await this.readJson(request);
+      const body = await this.readJson(request, 16 * 1024 * 1024);
       this.requireBodyToken(body);
       this.requireClient(body);
       this.lastSeenAt = Date.now();
@@ -309,14 +309,14 @@ export class StudioBridge {
     }
   }
 
-  private async readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
+  private async readJson(request: IncomingMessage, maximumBytes = 1_000_000): Promise<Record<string, unknown>> {
     const chunks: Buffer[] = [];
     let total = 0;
 
     for await (const chunk of request) {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       total += buffer.length;
-      if (total > 1_000_000) {
+      if (total > maximumBytes) {
         throw new RequestError(413, "Request body too large");
       }
       chunks.push(buffer);

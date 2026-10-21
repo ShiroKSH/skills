@@ -19,6 +19,7 @@ Use the `roblox-studio` MCP tools to work against the place currently open in St
 - New map or major rebuild: read [scene-spec.md](references/scene-spec.md), draft one SceneSpec, then use `map_apply_scene_spec`.
 - Fast graybox: use `map_create_blockout`, then validate the route before visual refinement.
 - Existing generated map repair: inspect first and batch related edits with `studio_patch_instances`.
+- Before a substantial repair, use `studio_export_model` to keep a private local model backup.
 - Focused property edit: use `studio_set_properties`; use `studio_create_instance` only inside a managed root.
 - Terrain-only task: use `terrain_generate` with an explicit bounded size.
 - Luau plus Rojo output: set `codegen.target` to `both` and review every script before apply.
@@ -34,7 +35,7 @@ Use the `roblox-studio` MCP tools to work against the place currently open in St
 6. Run `map_validate` on the exact returned map root with `strictGeometry=true`.
 7. Run `map_readiness_check` for playable maps; use `profile="house"` only for its named house contract.
 8. Inspect from useful angles with `studio_focus_instance`, `studio_set_camera`, and `studio_visual_probe`.
-9. Start a playtest when behavior matters. If Studio returns a manual fallback, ask for that one action and continue with `studio_read_output` afterward.
+9. When behavior matters, review a managed test ModuleScript and call `studio_run_test` with `confirmToken="RUN_STUDIO_TEST"`. Tests execute ordinary project code, not a sandbox. Use a working copy and disable or mock persistent/external writes.
 10. Repair concrete failures and repeat validation. Prefer a scoped patch over rebuilding a sound map.
 
 ## Quality Bar
@@ -45,6 +46,7 @@ Use the `roblox-studio` MCP tools to work against the place currently open in St
 - Put doors, buttons, elevators, teleporters, and checkpoints in `functionalObjects`. Bind a behavior to existing visible geometry with `target` when possible.
 - Treat validation warnings about terrain intersections, blocked doors, stair headroom, unreachable landings, or solid overlaps as repair work.
 - Do not call a map visually ready from object counts or `map_validate` alone.
+- Use `studio_capture_viewport` for real viewport evidence after native permission is granted. Never substitute a desktop capture, invent a frame, or trigger permission dialogs during a background-only task. Review in-world text before sharing an image.
 
 ## Guardrails
 

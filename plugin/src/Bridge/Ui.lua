@@ -56,9 +56,9 @@ function Ui.new(plugin, toolbarButton)
 	self.connectCallbacks = {}
 	self.disconnectCallbacks = {}
 	self.undoCallbacks = {}
-	local info = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 360, 460, 280, 320)
+	local info = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 360, 460, 280, 360)
 	self.widget = plugin:CreateDockWidgetPluginGui("RobloxStudioBridge", info)
-	self.widget.Title = "Roblox Studio Bridge 0.2.2"
+	self.widget.Title = "Roblox Studio Bridge 0.2.3"
 
 	local root = Instance.new("Frame")
 	root.Name = "Root"
@@ -75,11 +75,12 @@ function Ui.new(plugin, toolbarButton)
 	self.tokenBox = makeBox(root, "TokenBox", "", UDim2.fromOffset(12, 128), UDim2.new(1, -24, 0, 28))
 	self.connectionButton = makeButton(root, "Connection", "Connect", UDim2.fromOffset(12, 168), UDim2.new(0.5, -18, 0, 30))
 	self.undoButton = makeButton(root, "Undo", "Undo", UDim2.new(0.5, 6, 0, 168), UDim2.new(0.5, -18, 0, 30))
-	makeText(root, "Activity", "Activity", UDim2.fromOffset(12, 210), UDim2.new(1, -24, 0, 20))
+	self.capturePermissionButton = makeButton(root, "CapturePermission", "Allow viewport capture", UDim2.fromOffset(12, 206), UDim2.new(1, -24, 0, 30))
+	makeText(root, "Activity", "Activity", UDim2.fromOffset(12, 248), UDim2.new(1, -24, 0, 20))
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = "LogScroll"
-	scroll.Position = UDim2.fromOffset(12, 236)
-	scroll.Size = UDim2.new(1, -24, 1, -248)
+	scroll.Position = UDim2.fromOffset(12, 274)
+	scroll.Size = UDim2.new(1, -24, 1, -286)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 4
@@ -115,6 +116,16 @@ function Ui.new(plugin, toolbarButton)
 		for _, callback in ipairs(self.undoCallbacks) do
 			callback()
 		end
+	end)
+	self.capturePermissionButton.MouseButton1Click:Connect(function()
+		if self.requestingCapturePermission then return end
+		self.requestingCapturePermission = true
+		local ok, allowed = pcall(function()
+			return game:GetService("StudioCaptureService"):RequestScreenshotPermissionAsync()
+		end)
+		self.requestingCapturePermission = false
+		if self.destroyed then return end
+		self:log(ok and (allowed and "Viewport capture permission granted" or "Viewport capture permission unavailable") or tostring(allowed))
 	end)
 	self.widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 		toolbarButton:SetActive(self.widget.Enabled)

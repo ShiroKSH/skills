@@ -5,6 +5,9 @@ local InstanceSerializer = require(script.Parent.InstanceSerializer)
 local Safety = require(script.Parent.Safety)
 local SceneApplier = require(script.Parent.SceneApplier)
 local TerrainGenerator = require(script.Parent.TerrainGenerator)
+local ModelExporter = require(script.Parent.ModelExporter)
+local Playtester = require(script.Parent.Playtester)
+local ViewportCapture = require(script.Parent.ViewportCapture)
 
 local CommandRouter = {}
 CommandRouter.__index = CommandRouter
@@ -120,7 +123,7 @@ function CommandRouter:handle(name, args)
 
 	if name == "studio_ping" then
 		return {
-			pluginVersion = "0.2.2",
+			pluginVersion = "0.2.3",
 			placeName = game.Name,
 			placeId = game.PlaceId,
 			status = "Connected",
@@ -184,6 +187,12 @@ function CommandRouter:handle(name, args)
 		return SceneApplier.validate(args)
 	elseif name == "map_readiness_check" then
 		return SceneApplier.readiness(args)
+	elseif name == "studio_export_model" then
+		return ModelExporter.export(args)
+	elseif name == "studio_run_test" then
+		return Playtester.run(args)
+	elseif name == "studio_capture_viewport" then
+		return ViewportCapture.capture(args)
 	elseif name == "studio_read_output" then
 		return { lines = self.ui:getLogs(args.lines or 100) }
 	elseif name == "studio_start_playtest" then

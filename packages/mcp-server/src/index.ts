@@ -21,7 +21,7 @@ await bridge.start();
 
 const server = new McpServer({
   name: "roblox-studio",
-  version: "0.2.2"
+  version: "0.2.3"
 });
 
 registerBridgeTools(server, bridge, config);
